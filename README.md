@@ -1,4 +1,4 @@
-# BidHouse ECS + RDS + Secrets Manager smoke test
+# BidHouse ECS + RDS + Secrets Manager test
 
 This isolated test stack verifies the following path without modifying the existing multi-cloud Terraform state:
 
