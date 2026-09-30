@@ -1,0 +1,12 @@
+**/terraform.tfvars
+*.auto.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/
+*.ps1
+.git/
+*.example
+**/node_modules/
+# .gitignore 확인
+*.zip
+grep "tfvars" /tmp/buildspec_new/.gitignore
