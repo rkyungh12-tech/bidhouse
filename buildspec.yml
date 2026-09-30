@@ -1,0 +1,534 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo "=== Runtime setup ==="
+      - node -v
+      - npm -v
+      - apt-get update -y && apt-get install -y mysql-client jq
+      - wget https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip
+      - unzip -o terraform_1.9.8_linux_amd64.zip
+      - sudo mv terraform /usr/local/bin/
+      - terraform --version
+      - curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+      - curl -L https://aka.ms/downloadazcopy-v10-linux | tar xz --strip-components=1 -C /usr/local/bin
+
+  pre_build:
+    commands:
+      - echo "=== Azure credentials from Secrets Manager ==="
+      
+      - AWS_CREDS=$(aws secretsmanager get-secret-value --secret-id "bidhouse-aws-credentials" --region ap-northeast-2 --query SecretString --output text)
+      - export TF_VAR_aws_access_key_id=$(echo "$AWS_CREDS" | jq -r '.access_key')
+      - export TF_VAR_aws_secret_access_key=$(echo "$AWS_CREDS" | jq -r '.secret_key')
+
+      - export AWS_DEFAULT_REGION=ap-northeast-2
+      - AZ_ROOM=$(aws secretsmanager get-secret-value --secret-id "bidhouse-azure-secret" --region ap-northeast-2 --query SecretString --output text)
+      
+      - export ARM_CLIENT_ID=$(echo "$AZ_ROOM" | jq -r '.client_id')
+      - export ARM_CLIENT_SECRET=$(echo "$AZ_ROOM" | jq -r '.client_secret')
+      - export ARM_TENANT_ID=$(echo "$AZ_ROOM" | jq -r '.tenant_id')
+      - export ARM_SUBSCRIPTION_ID=$(echo "$AZ_ROOM" | jq -r '.subscription_id')
+      - az login --service-principal -u "$ARM_CLIENT_ID" -p "$ARM_CLIENT_SECRET" --tenant "$ARM_TENANT_ID"
+      - az account set --subscription "$ARM_SUBSCRIPTION_ID"
+      
+      - export IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-12)
+      - echo "IMAGE_TAG=$IMAGE_TAG"
+
+      - echo "=== 파이프라인 지령(파일) 확인 중 ===" 
+      - |
+        if [ -f "STAGE_CONFIG.txt" ]; then
+          STAGE=$(cat STAGE_CONFIG.txt | tr -d '\r\n\t ')
+          echo "지령 파일 확인: STAGE=$STAGE"
+        else
+          export STAGE="1"
+          echo "지령 파일 없음. 기본값: STAGE=1"
+        fi
+      - export STAGE="$STAGE"
+      - echo "▶️ CURRENT RUNNING STAGE = STAGE $STAGE"
+
+  build:
+    commands:
+      - set -e
+      - export IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-12)
+
+      
+      - |
+        # =====================================================================
+        # [STAGE 1] AWS 메인 인프라 및 첫 배포
+        # =====================================================================
+        if [ "$STAGE" = "1" ]; then
+          echo "=== [0] failback_lambda 의존성 설치 ==="
+          cd "$CODEBUILD_SRC_DIR/failback_lambda"
+          npm install --production > /dev/null 2>&1 || true
+          cd "$CODEBUILD_SRC_DIR"
+
+          echo "=== [0-0] promote_lambda 의존성 설치 ==="
+          cd "$CODEBUILD_SRC_DIR/promote_lambda"
+          npm install --production > /dev/null 2>&1 || true
+          cd "$CODEBUILD_SRC_DIR"
+
+          echo "=== [0-1] s3_sync_lambda zip 패키징 ==="
+          cd "$CODEBUILD_SRC_DIR/s3_sync_lambda"
+          npm install --production > /dev/null 2>&1 || true
+          zip -r -q "$CODEBUILD_SRC_DIR/04-aws-seoul-app-foundation/s3_sync_lambda.zip" .
+          cd "$CODEBUILD_SRC_DIR"
+
+
+          
+          echo "=== [1-0] 04-foundation 기존 값 복원 시도 (재배포 시 failback 변수 초기화 방지) ==="
+          EXIST_RDS_HOST="" ; EXIST_RDS_USER="" ; EXIST_RDS_PASS=""
+          EXIST_SUBNETS="[]" ; EXIST_SG="[]" ; EXIST_PRIMARY_HC_ID=""
+          if (cd "$CODEBUILD_SRC_DIR/01-aws-seoul-network" && terraform init -reconfigure \
+               -backend-config="bucket=bidhouse-global-immutable-2026" \
+               -backend-config="region=ap-northeast-2" \
+               -backend-config="encrypt=true" > /dev/null 2>&1); then
+            cd "$CODEBUILD_SRC_DIR/01-aws-seoul-network"
+            EXIST_RDS_HOST=$(terraform output -raw rds_endpoint 2>/dev/null || echo "")
+            EXIST_SECRET_ARN=$(terraform output -raw rds_master_secret_arn 2>/dev/null || echo "")
+            EXIST_SUBNETS=$(terraform output -json prod_private_subnet_ids 2>/dev/null || echo "[]")
+            EXIST_SG_ID=$(terraform output -raw ecs_task_security_group_id 2>/dev/null || echo "")
+            EXIST_PRIMARY_HC_ID=$(terraform output -raw primary_health_check_id 2>/dev/null || echo "")
+            if [ -n "$EXIST_SG_ID" ]; then EXIST_SG="[\"$EXIST_SG_ID\"]"; fi
+            if [ -n "$EXIST_SECRET_ARN" ]; then
+              EXIST_SECRET=$(aws secretsmanager get-secret-value --secret-id "$EXIST_SECRET_ARN" --query SecretString --output text 2>/dev/null || echo "{}")
+              EXIST_RDS_USER=$(echo "$EXIST_SECRET" | jq -r '.username // ""')
+              EXIST_RDS_PASS=$(echo "$EXIST_SECRET" | jq -r '.password // ""')
+            fi
+          fi
+          EXIST_REPL_PASS=$(aws secretsmanager get-secret-value --secret-id "bidhouse-repl-user-password" --region ap-northeast-2 --query SecretString --output text 2>/dev/null || echo "")
+          EXIST_AZ_MYSQL_HOST="" ; EXIST_AZ_MYSQL_USER="" ; EXIST_AZ_MYSQL_PASS=""
+          EXIST_AZ_STORAGE_NAME="" ; EXIST_AZ_STORAGE_KEY=""
+          if (cd "$CODEBUILD_SRC_DIR/02-azure-singapore-dr" && terraform init -reconfigure \
+               -backend-config="bucket=bidhouse-global-immutable-2026" \
+               -backend-config="region=ap-northeast-2" \
+               -backend-config="encrypt=true" > /dev/null 2>&1); then
+            cd "$CODEBUILD_SRC_DIR/02-azure-singapore-dr"
+            EXIST_AZ_FQDN=$(terraform output -raw azure_mysql_fqdn 2>/dev/null || echo "")
+            if [ -n "$EXIST_AZ_FQDN" ]; then
+              EXIST_AZ_MYSQL_HOST=$(az network private-dns record-set a list --resource-group "bidhouse-dr-v1-rg" --zone-name "bidhouse.mysql.database.azure.com" --query "[0].aRecords[0].ipv4Address" -o tsv 2>/dev/null || echo "$EXIST_AZ_FQDN")
+            fi
+            EXIST_AZ_MYSQL_USER=$(terraform output -raw azure_mysql_admin_username 2>/dev/null || echo "")
+            EXIST_AZ_STORAGE_NAME=$(terraform output -raw azure_storage_account_name 2>/dev/null || echo "")
+            EXIST_AZ_STORAGE_KEY=$(terraform output -raw azure_storage_account_key 2>/dev/null || echo "")
+            EXIST_AZ_KV=$(terraform output -raw azure_key_vault_name 2>/dev/null || echo "")
+            if [ -n "$EXIST_AZ_KV" ]; then
+              EXIST_AZ_MYSQL_PASS=$(az keyvault secret show --vault-name "$EXIST_AZ_KV" --name mysql-admin-password --query value -o tsv 2>/dev/null || echo "")
+            fi
+          fi
+
+          echo "=== [1] AWS app foundation ==="
+          cd "$CODEBUILD_SRC_DIR/04-aws-seoul-app-foundation"
+          rm -rf .terraform*
+          terraform init -reconfigure \
+            -backend-config="bucket=bidhouse-global-immutable-2026" \
+            -backend-config="region=ap-northeast-2" \
+            -backend-config="encrypt=true"
+          terraform apply -auto-approve \
+            -var="rds_host=$EXIST_RDS_HOST" \
+            -var="rds_user=$EXIST_RDS_USER" \
+            -var="rds_pass=$EXIST_RDS_PASS" \
+            -var="repl_pass=$EXIST_REPL_PASS" \
+            -var="lambda_subnet_ids=$EXIST_SUBNETS" \
+            -var="lambda_security_group_ids=$EXIST_SG" \
+            -var="primary_health_check_id=$EXIST_PRIMARY_HC_ID" \
+            -var="az_mysql_host=$EXIST_AZ_MYSQL_HOST" \
+            -var="az_mysql_user=$EXIST_AZ_MYSQL_USER" \
+            -var="az_mysql_pass=$EXIST_AZ_MYSQL_PASS" \
+            -var="az_storage_account_name=$EXIST_AZ_STORAGE_NAME" \
+            -var="az_storage_account_key=$EXIST_AZ_STORAGE_KEY"
+          S3_BUCKET=$(terraform output -raw s3_bucket_name)
+
+
+          echo "=== [2] Create AWS ECR repository first ==="
+          cd "$CODEBUILD_SRC_DIR/01-aws-seoul-network"
+          rm -rf .terraform*
+          terraform init -reconfigure \
+            -backend-config="bucket=bidhouse-global-immutable-2026" \
+            -backend-config="region=ap-northeast-2" \
+            -backend-config="encrypt=true"
+
+          # ACM 인증서 먼저 생성
+          terraform apply \
+            -target=aws_ecr_repository.app \
+            -target=aws_acm_certificate.cdn \
+            -target=aws_acm_certificate.api \
+            -var="app_image_tag=$IMAGE_TAG" \
+            -var="s3_images_bucket_name=dummy" \
+            -auto-approve
+
+          export AWS_ECR_URI=$(terraform output -raw ecr_repository_url)
+          export AWS_REGISTRY="${AWS_ECR_URI%%/*}"
+          echo "AWS_ECR_URI=$AWS_ECR_URI"
+
+          echo "=== [3] Docker login and image build ==="
+          aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin "$AWS_REGISTRY"
+          cd "$CODEBUILD_SRC_DIR"
+          docker build \
+            --build-arg NPM_CONFIG_REGISTRY="https://registry.npmjs.org/" \
+            -t "bidhouse-prod-app:$IMAGE_TAG" ./app
+          docker tag "bidhouse-prod-app:$IMAGE_TAG" "$AWS_ECR_URI:$IMAGE_TAG"
+
+          echo "=== [4] Push immutable image to AWS ECR ==="
+          if aws ecr describe-images --repository-name bidhouse-prod-app --image-ids imageTag="$IMAGE_TAG" --region ap-northeast-2 > /dev/null 2>&1; then
+            echo "AWS ECR image already exists: $IMAGE_TAG"
+          else
+            docker push "$AWS_ECR_URI:$IMAGE_TAG"
+          fi
+
+          echo "=== [4-1] Import existing CloudFront OAC if exists ==="
+          cd "$CODEBUILD_SRC_DIR/01-aws-seoul-network"
+          set +e
+          OAC_ID=$(aws cloudfront list-origin-access-controls --query "OriginAccessControlList.Items[?Name=='bidhouse-frontend-oac'].Id" --output text)
+          if [ -n "$OAC_ID" ] && [ "$OAC_ID" != "None" ]; then
+            echo "OAC 존재함, import 시도: $OAC_ID"
+            terraform import aws_cloudfront_origin_access_control.frontend "$OAC_ID"
+          fi
+          set -e
+
+          echo "=== [4-2] Import existing resources ==="
+          cd "$CODEBUILD_SRC_DIR/01-aws-seoul-network"
+          set +e
+          terraform import aws_iam_role.bastion_ssm_role bidhouse-bastion-ssm-role 2>/dev/null
+          terraform import aws_sesv2_email_identity.domain bidhouse.cloud 2>/dev/null
+          terraform import aws_secretsmanager_secret.socketio_redis_auth bidhouse/prod/socketio-redis-auth 2>/dev/null
+          terraform import aws_secretsmanager_secret.app_config bidhouse/prod/app-config-v4 2>/dev/null
+          terraform import aws_cloudwatch_log_group.route53_public_query /aws/route53/bidhouse-cloud 2>/dev/null
+          set -e
+
+          echo "=== [5] Apply AWS Seoul resources ==="
+          S3_IMAGES_BUCKET=$(cd "$CODEBUILD_SRC_DIR/04-aws-seoul-app-foundation" && terraform output -raw s3_images_bucket_name)
+          cd "$CODEBUILD_SRC_DIR/01-aws-seoul-network"
+
+          # ACM 인증서 먼저 생성
+          terraform apply \
+            -target=aws_acm_certificate.cdn \
+            -target=aws_acm_certificate.api \
+            -var="app_image_tag=$IMAGE_TAG" \
+            -var="s3_images_bucket_name=$S3_IMAGES_BUCKET" \
+            -auto-approve
+
+          # 전체 apply
+          terraform apply \
+            -var="app_image_tag=$IMAGE_TAG" \
+            -var="s3_images_bucket_name=$S3_IMAGES_BUCKET" \
+            -auto-approve || \
+            (sleep 30 && terraform apply \
+              -var="app_image_tag=$IMAGE_TAG" \
+              -var="s3_images_bucket_name=$S3_IMAGES_BUCKET" \
+              -auto-approve)
+
+          echo "=== [5-1] Upload static frontend to private S3 ==="
+          export FRONTEND_BUCKET=$(terraform output -raw frontend_bucket_name)
+          export CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)
+
+
+          # 서울용 - __APP_REGION__을 seoul로 치환
+          sed 's/__APP_REGION__/seoul/g' "$CODEBUILD_SRC_DIR/app/public/index.html" > /tmp/index-seoul.html
+          aws s3 cp /tmp/index-seoul.html "s3://$FRONTEND_BUCKET/index.html" --region ap-northeast-2
+          aws s3 sync "$CODEBUILD_SRC_DIR/app/public" "s3://$FRONTEND_BUCKET" --delete --exclude "index.html" --region ap-northeast-2
+          aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/index.html"
+
+          echo "=== [6] Start ECS task or roll deployment ==="
+          CURRENT_DESIRED=$(aws ecs describe-services --cluster bidhouse-prod-cluster --services bidhouse-prod-service --region ap-northeast-2 --query "services[0].desiredCount" --output text)
+          if [ "$CURRENT_DESIRED" = "0" ] || [ "$CURRENT_DESIRED" = "None" ] || [ -z "$CURRENT_DESIRED" ]; then
+            aws ecs update-service --cluster bidhouse-prod-cluster --service bidhouse-prod-service --desired-count 1 --force-new-deployment --region ap-northeast-2
+          else
+            aws ecs update-service --cluster bidhouse-prod-cluster --service bidhouse-prod-service --force-new-deployment --region ap-northeast-2
+          fi
+
+          echo "=== [7] Wait & Smoke test ==="
+          aws ecs wait services-stable --cluster bidhouse-prod-cluster --services bidhouse-prod-service --region ap-northeast-2
+          export ALB_DNS=$(aws elbv2 describe-load-balancers --names bidhouse-seoul-alb --region ap-northeast-2 --query "LoadBalancers[0].DNSName" --output text)
+          curl -fsS --retry 12 --retry-delay 10 "http://$ALB_DNS/health"
+        fi
+
+        # =====================================================================
+        # [STAGE 2] Azure DR 배포
+        # =====================================================================
+        if [ "$STAGE" = "2" ]; then
+          echo "=== [STAGE 2 Init] AWS NAT IP 가져오기 ==="
+          cd "$CODEBUILD_SRC_DIR/01-aws-seoul-network"
+          rm -rf .terraform*
+          terraform init -reconfigure \
+            -backend-config="bucket=bidhouse-global-immutable-2026" \
+            -backend-config="region=ap-northeast-2" \
+            -backend-config="encrypt=true"
+          NAT_IP=$(terraform output -raw prod_nat_gateway_public_ip)
+          export TF_VAR_nat_gateway_public_ip=$NAT_IP
+
+          echo "=== [9] Azure VPN Gateway 생성 ==="
+          cd "$CODEBUILD_SRC_DIR/02-azure-singapore-dr"
+          rm -rf .terraform*
+          terraform init -reconfigure \
+            -backend-config="bucket=bidhouse-global-immutable-2026" \
+            -backend-config="region=ap-northeast-2" \
+            -backend-config="encrypt=true"
+          terraform apply -target=azurerm_virtual_network_gateway.azure_vpn_gw -auto-approve
+
+          echo "=== [9-1] Azure VPN Gateway 대기 ==="
+          for i in $(seq 1 60); do
+            STATUS=$(az network vnet-gateway show --name bidhouse-dr-v1-vpn-gw --resource-group bidhouse-dr-v1-rg --query provisioningState -o tsv 2>/dev/null || echo "Pending")
+            echo "[$i/60] VPN Gateway: $STATUS"
+            if [ "$STATUS" = "Succeeded" ]; then break; fi
+            sleep 60 
+          done
+
+          echo "=== [9-4] Azure DR 기존 리소스 import ===" 
+          set +e
+          SUB_ID="3a6d4b80-d67f-4ae3-93c9-d535b7f1e147"
+          RG="bidhouse-dr-v1-rg"
+          PREFIX="bidhouse-dr-v1"
+          terraform import azurerm_container_app_environment.aca_env "/subscriptions/$SUB_ID/resourceGroups/$RG/providers/Microsoft.App/managedEnvironments/${PREFIX}-aca-env" 2>/dev/null
+          
+          MYSQL_SERVER=$(az mysql flexible-server list --resource-group "$RG" --query "[0].name" -o tsv 2>/dev/null)
+          if [ -n "$MYSQL_SERVER" ]; then
+            terraform import azurerm_mysql_flexible_database.auction "/subscriptions/$SUB_ID/resourceGroups/$RG/providers/Microsoft.DBforMySQL/flexibleServers/$MYSQL_SERVER/databases/auction" 2>/dev/null
+            terraform import azurerm_mysql_flexible_server_firewall_rule.allow_codebuild "/subscriptions/$SUB_ID/resourceGroups/$RG/providers/Microsoft.DBforMySQL/flexibleServers/$MYSQL_SERVER/firewallRules/allow-codebuild-nat" 2>/dev/null
+          fi
+          set -e
+
+          SQS_CREDS=$(aws secretsmanager get-secret-value \
+            --secret-id "bidhouse-azure-sqs-credentials" \
+            --region ap-northeast-2 \
+            --query SecretString --output text)
+          export TF_VAR_aws_access_key_id=$(echo "$SQS_CREDS" | jq -r '.access_key')
+          export TF_VAR_aws_secret_access_key=$(echo "$SQS_CREDS" | jq -r '.secret_key')
+
+          echo "=== [9-5] Azure DR 전체 리소스 생성 ==="
+
+          # Cognito 값 01번방에서 자동으로 가져오기
+          cd "$CODEBUILD_SRC_DIR/01-aws-seoul-network"
+          COGNITO_CLIENT_ID=$(terraform output -raw cognito_spa_client_id)
+          COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
+
+          # JWT_SECRET AWS에서 가져오기
+          JWT_SECRET=$(aws secretsmanager get-secret-value \
+          --secret-id "bidhouse/prod/app-config-v4" \
+          --region ap-northeast-2 \
+          --query SecretString --output text | jq -r '.JWT_SECRET')
+
+          cd "$CODEBUILD_SRC_DIR/02-azure-singapore-dr"
+          terraform apply \
+            -var="cognito_client_id=$COGNITO_CLIENT_ID" \
+            -var="cognito_user_pool_id=$COGNITO_USER_POOL_ID" \
+            -var="jwt_secret=$JWT_SECRET" \
+            -auto-approve
+          export AZ_ACR_SERVER=$(terraform output -raw acr_login_server)
+
+          echo "=== [10] Push same Docker image to Azure ACR ==="
+          cd "$CODEBUILD_SRC_DIR/01-aws-seoul-network"
+          export AWS_ECR_URI=$(terraform output -raw ecr_repository_url)
+          export AWS_REGISTRY="${AWS_ECR_URI%%/*}"
+
+          # ← 여기 추가: ECR 최신 태그 가져오기
+          export IMAGE_TAG=$(aws ecr describe-images \
+            --repository-name bidhouse-prod-app \
+            --region ap-northeast-2 \
+            --query "sort_by(imageDetails, &imagePushedAt)[-1].imageTags[0]" \
+            --output text)
+          echo "ECR 최신 이미지 태그: $IMAGE_TAG"
+
+          # ← 여기 추가: 태그 검증
+          if [ -z "$IMAGE_TAG" ] || [ "$IMAGE_TAG" = "None" ]; then
+            echo "ERROR: ECR에서 이미지 태그를 찾을 수 없습니다."
+            exit 1
+          fi
+
+          aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin "$AWS_REGISTRY"
+          docker pull "$AWS_ECR_URI:$IMAGE_TAG"
+          docker tag "$AWS_ECR_URI:$IMAGE_TAG" "bidhouse-prod-app:$IMAGE_TAG"
+          
+          az acr login --name "${AZ_ACR_SERVER%%.*}"
+          cd "$CODEBUILD_SRC_DIR"
+          docker tag "bidhouse-prod-app:$IMAGE_TAG" "$AZ_ACR_SERVER/bidhouse-prod-app:$IMAGE_TAG"
+          docker push "$AZ_ACR_SERVER/bidhouse-prod-app:$IMAGE_TAG"
+
+          echo "=== [11] Update Azure Container Apps ==="
+          cd "$CODEBUILD_SRC_DIR/02-azure-singapore-dr"
+          terraform apply \
+          -var="azure_app_image_tag=$IMAGE_TAG" \
+          -var="cognito_client_id=$COGNITO_CLIENT_ID" \
+          -var="cognito_user_pool_id=$COGNITO_USER_POOL_ID" \
+          -var="jwt_secret=$JWT_SECRET" \
+          -auto-approve
+
+          echo "=== [11-1] Lambda 환경변수에 Azure Storage Key 주입 ==="
+          AZ_STORAGE_KEY=$(terraform output -raw azure_storage_account_key)
+          AZ_STORAGE_NAME=$(terraform output -raw azure_storage_account_name)
+          AZ_MYSQL_FQDN=$(terraform output -raw azure_mysql_fqdn)
+          AZ_MYSQL_IP=$(az network private-dns record-set a list --resource-group "bidhouse-dr-v1-rg" --zone-name "bidhouse.mysql.database.azure.com" --query "[0].aRecords[0].ipv4Address" -o tsv 2>/dev/null || echo "$AZ_MYSQL_FQDN")
+          AZ_MYSQL_ADMIN=$(terraform output -raw azure_mysql_admin_username 2>/dev/null || echo "dbadmin")
+
+          echo "=== [11-2] 서울 Primary 헬스체크 ID 가져오기 ==="
+          cd "$CODEBUILD_SRC_DIR/01-aws-seoul-network"
+          PRIMARY_HC_ID=$(terraform output -raw primary_health_check_id 2>/dev/null || echo "")
+
+          AZURE_MYSQL_ADMIN_PASS=$(az keyvault secret show \
+            --vault-name "$(cd $CODEBUILD_SRC_DIR/02-azure-singapore-dr && terraform output -raw azure_key_vault_name)" \
+            --name mysql-admin-password \
+            --query value -o tsv)
+
+          echo "=== [11-3] failback/promote Lambda 의존성 설치 (04 모듈 재apply 전) ==="
+          cd "$CODEBUILD_SRC_DIR/failback_lambda"
+          npm install --production > /dev/null 2>&1 || true
+          cd "$CODEBUILD_SRC_DIR/promote_lambda"
+          npm install --production > /dev/null 2>&1 || true
+          cd "$CODEBUILD_SRC_DIR"
+
+          cd "$CODEBUILD_SRC_DIR/04-aws-seoul-app-foundation"
+          terraform init -reconfigure \
+            -backend-config="bucket=bidhouse-global-immutable-2026" \
+            -backend-config="region=ap-northeast-2" \
+            -backend-config="encrypt=true"
+          S3_IMAGES_BUCKET=$(terraform output -raw s3_images_bucket_name)
+          terraform apply \
+            -var="az_storage_account_name=$AZ_STORAGE_NAME" \
+            -var="az_storage_account_key=$AZ_STORAGE_KEY" \
+            -var="az_mysql_host=$AZ_MYSQL_IP" \
+            -var="az_mysql_user=$AZURE_MYSQL_ADMIN" \
+            -var="az_mysql_pass=$AZURE_MYSQL_ADMIN_PASS" \
+            -var="primary_health_check_id=$PRIMARY_HC_ID" \
+            -var="s3_images_bucket_name=$S3_IMAGES_BUCKET" \
+            -auto-approve
+        fi
+        
+
+        # =====================================================================
+        # [STAGE 3] Cross-Cloud 연결 및 DB/Storage 동기화
+        # =====================================================================
+        if [ "$STAGE" = "3" ]; then
+          echo "=== [9-2] AWS ↔ Azure VPN 연결 생성 ==="
+          cd "$CODEBUILD_SRC_DIR/03-cross-cloud"
+          rm -rf .terraform*
+          terraform init -reconfigure \
+            -backend-config="bucket=bidhouse-global-immutable-2026" \
+            -backend-config="region=ap-northeast-2" \
+            -backend-config="encrypt=true"
+
+          set +e
+          terraform import aws_cloudwatch_log_group.vpn /aws/vpn/bidhouse-aws-to-azure 2>/dev/null
+          ZONE_ID="Z06871951UHNXJ9OC6QFT"
+          terraform import "aws_route53_record.secondary" "${ZONE_ID}_api.bidhouse.cloud_A_singapore-dr" 2>/dev/null
+          set -e
+          
+          terraform apply -target=aws_customer_gateway.aws_cgw -target=aws_vpn_connection.aws_vpn -target=aws_ec2_transit_gateway_route.to_azure -target=aws_ec2_transit_gateway_route.to_azure_mgmt -target=azurerm_local_network_gateway.aws_lng1 -target=azurerm_local_network_gateway.aws_lng2 -target=azurerm_virtual_network_gateway_connection.azure_conn1 -target=azurerm_virtual_network_gateway_connection.azure_conn2 -auto-approve
+
+          echo "=== [9-3] AWS VPN Tunnel UP 대기 ==="
+          VPN_ID=$(terraform output -raw vpn_connection_id)
+          for i in $(seq 1 60); do
+            STATUS=$(aws ec2 describe-vpn-connections --vpn-connection-ids "$VPN_ID" --query "VpnConnections[0].VgwTelemetry[*].Status" --output text 2>/dev/null || echo "DOWN")
+            echo "[$i/60] VPN Tunnel: $STATUS"
+            if echo "$STATUS" | grep -q "UP"; then break; fi
+            sleep 60
+          done
+
+          echo "=== [12] Cross-cloud apply ==="
+          terraform apply -auto-approve
+
+          chmod +x "$CODEBUILD_SRC_DIR/scripts/db-replicate.sh"
+          "$CODEBUILD_SRC_DIR/scripts/db-replicate.sh"
+            
+          echo "=== [12-1] failback Lambda용 RDS/Repl 정보 조회 ==="
+          cd "$CODEBUILD_SRC_DIR/01-aws-seoul-network"
+          terraform init -reconfigure \
+            -backend-config="bucket=bidhouse-global-immutable-2026" \
+            -backend-config="region=ap-northeast-2" \
+            -backend-config="encrypt=true" > /dev/null 2>&1
+
+          RDS_HOST=$(terraform output -raw rds_endpoint)
+          RDS_SECRET_ARN=$(terraform output -raw rds_master_secret_arn)
+          ECS_SG_ID=$(terraform output -raw ecs_task_security_group_id)
+          LAMBDA_SUBNET_IDS_JSON=$(terraform output -json prod_private_subnet_ids)
+          PRIMARY_HC_ID=$(terraform output -raw primary_health_check_id 2>/dev/null || echo "")
+
+          RDS_SECRET=$(aws secretsmanager get-secret-value \
+            --secret-id "$RDS_SECRET_ARN" \
+            --query SecretString --output text)
+          RDS_USER=$(echo "$RDS_SECRET" | jq -r '.username')
+          RDS_PASS=$(echo "$RDS_SECRET" | jq -r '.password')
+
+          REPL_PASS=$(aws secretsmanager get-secret-value \
+            --secret-id "bidhouse-repl-user-password" \
+            --region ap-northeast-2 \
+            --query SecretString --output text)
+
+          echo "=== [12-2] Azure MySQL 접속정보 재조회 (04 모듈 재apply용) ==="
+          cd "$CODEBUILD_SRC_DIR/02-azure-singapore-dr"
+          terraform init -reconfigure \
+            -backend-config="bucket=bidhouse-global-immutable-2026" \
+            -backend-config="region=ap-northeast-2" \
+            -backend-config="encrypt=true" > /dev/null 2>&1
+
+          AZ_STORAGE_NAME=$(terraform output -raw azure_storage_account_name)
+          AZ_STORAGE_KEY=$(terraform output -raw azure_storage_account_key)
+          AZ_MYSQL_FQDN=$(terraform output -raw azure_mysql_fqdn)
+          AZ_MYSQL_IP=$(az network private-dns record-set a list --resource-group "bidhouse-dr-v1-rg" --zone-name "bidhouse.mysql.database.azure.com" --query "[0].aRecords[0].ipv4Address" -o tsv 2>/dev/null || echo "$AZ_MYSQL_FQDN")
+          AZ_MYSQL_ADMIN=$(terraform output -raw azure_mysql_admin_username 2>/dev/null || echo "dbadmin")
+          AZURE_MYSQL_ADMIN_PASS=$(az keyvault secret show \
+            --vault-name "$(terraform output -raw azure_key_vault_name)" \
+            --name mysql-admin-password \
+            --query value -o tsv)
+
+          echo "=== [12-2-1] failback/promote Lambda 의존성 설치 (04 모듈 재apply 전) ==="
+          cd "$CODEBUILD_SRC_DIR/failback_lambda"
+          npm install --production > /dev/null 2>&1 || true
+          cd "$CODEBUILD_SRC_DIR/promote_lambda"
+          npm install --production > /dev/null 2>&1 || true
+          cd "$CODEBUILD_SRC_DIR"
+
+          echo "=== [12-3] failback Lambda에 RDS/Repl/VPC 정보 주입 (04 모듈 재apply) ==="
+          cd "$CODEBUILD_SRC_DIR/04-aws-seoul-app-foundation"
+          terraform init -reconfigure \
+            -backend-config="bucket=bidhouse-global-immutable-2026" \
+            -backend-config="region=ap-northeast-2" \
+            -backend-config="encrypt=true" > /dev/null 2>&1
+
+          S3_IMAGES_BUCKET=$(terraform output -raw s3_images_bucket_name)
+
+          terraform apply \
+            -var="rds_host=$RDS_HOST" \
+            -var="rds_user=$RDS_USER" \
+            -var="rds_pass=$RDS_PASS" \
+            -var="repl_pass=$REPL_PASS" \
+            -var="lambda_subnet_ids=$LAMBDA_SUBNET_IDS_JSON" \
+            -var="lambda_security_group_ids=[\"$ECS_SG_ID\"]" \
+            -var="az_storage_account_name=$AZ_STORAGE_NAME" \
+            -var="az_storage_account_key=$AZ_STORAGE_KEY" \
+            -var="az_mysql_host=$AZ_MYSQL_IP" \
+            -var="az_mysql_user=$AZ_MYSQL_ADMIN" \
+            -var="az_mysql_pass=$AZURE_MYSQL_ADMIN_PASS" \
+            -var="primary_health_check_id=$PRIMARY_HC_ID" \
+            -var="s3_images_bucket_name=$S3_IMAGES_BUCKET" \
+            -auto-approve
+          echo "=== [14] Sync S3 to Azure Blob ==="
+          cd "$CODEBUILD_SRC_DIR/04-aws-seoul-app-foundation"
+          terraform init -reconfigure \
+            -backend-config="bucket=bidhouse-global-immutable-2026" \
+            -backend-config="region=ap-northeast-2" \
+            -backend-config="encrypt=true"
+          S3_BUCKET=$(terraform output -raw s3_bucket_name)
+
+          cd "$CODEBUILD_SRC_DIR/02-azure-singapore-dr"
+          AZ_STORAGE=$(terraform output -raw azure_storage_account_name)
+
+          # 싱가폴용 - __APP_REGION__을 singapore로 치환
+          git checkout "$CODEBUILD_SRC_DIR/app/public/index.html" 2>/dev/null || true
+          sed 's/__APP_REGION__/singapore/g' "$CODEBUILD_SRC_DIR/app/public/index.html" > /tmp/index-singapore.html
+          cp /tmp/index-singapore.html "$CODEBUILD_SRC_DIR/app/public/index.html"
+
+          mkdir -p /tmp/s3-sync
+          aws s3 sync "s3://$S3_BUCKET" /tmp/s3-sync --region ap-northeast-2
+          cp /tmp/index-singapore.html /tmp/s3-sync/index.html
+
+          AZ_SAS=$(az storage container generate-sas --account-name "$AZ_STORAGE" --name uploads --permissions racwdl --expiry 2099-01-01 --output tsv)
+          
+          echo "✅ SAS Token 발급 완료, azcopy 동기화 시작..."
+          azcopy sync "/tmp/s3-sync" "https://$AZ_STORAGE.blob.core.windows.net/uploads?$AZ_SAS" 
+        fi
+
+  post_build:
+    commands:
+      - echo "Deployment Stage $STAGE completed successfully."

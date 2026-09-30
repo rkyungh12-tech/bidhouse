@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log*
+.env
+.env.*
+!.env.example
+auction.db
+auction.db-shm
+auction.db-wal
+uploads
+.git
+.gitignore
+terraform
+README.md

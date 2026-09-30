@@ -1,0 +1,1837 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>BIDHOUSE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet"/>
+<script>
+  window.awsWafCookieDomainList = ['.bidhouse.cloud'];
+</script>
+<script type="text/javascript" src="https://b7569536f47b.ap-northeast-2.captcha-sdk.awswaf.com/b7569536f47b/jsapi.js" defer></script>
+<style>
+:root {
+  --bg: #ffffff;
+  --bg2: #f5f6fa;
+  --bg3: #eef0f7;
+  --accent: #1a56e8;
+  --accent2: #e84040;
+  --accent3: #f0a020;
+  --text: #111827;
+  --text2: #4b5563;
+  --muted: #9ca3af;
+  --border: #e5e7eb;
+  --border2: #d1d5db;
+  --shadow: 0 1px 4px rgba(0,0,0,0.08);
+  --shadow2: 0 4px 20px rgba(0,0,0,0.10);
+  --radius: 12px;
+  --admin: #7c3aed;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;min-height:100vh;}
+
+/* ── 헤더 ── */
+header{
+  position:sticky;top:0;z-index:100;
+  background:#fff;
+  border-bottom:2px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 2rem;height:64px;
+  box-shadow:var(--shadow);
+}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:3px;color:var(--accent);cursor:pointer;}
+.logo span{color:var(--accent2);}
+nav{display:flex;align-items:center;gap:.5rem;}
+.btn{padding:8px 18px;border-radius:8px;font-size:14px;font-family:inherit;cursor:pointer;transition:all .18s;border:none;font-weight:500;}
+.btn-outline{background:#fff;border:1.5px solid var(--border2);color:var(--text2);}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent);}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:#1344c0;transform:translateY(-1px);}
+.btn-danger{background:var(--accent2);color:#fff;}
+.btn-danger:hover{background:#c43030;}
+.btn-admin{background:var(--admin);color:#fff;}
+.btn-admin:hover{background:#6d28d9;}
+.btn-warning{background:var(--accent3);color:#fff;}
+.btn-warning:hover{background:#d08010;}
+.btn-ghost{background:transparent;border:1.5px solid var(--border2);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--accent2);color:var(--accent2);}
+.btn:disabled{background:var(--bg3);color:var(--muted);cursor:not-allowed;transform:none;}
+
+/* ── 페이지 전환 ── */
+.page{display:none;}
+.page.active{display:block;}
+
+/* ── 홈 레이아웃 ── */
+.home-layout{display:grid;grid-template-columns:300px 1fr 280px;min-height:calc(100vh - 64px);}
+
+/* ── 패널 공통 ── */
+.side-panel{background:#fff;border-right:2px solid var(--border);padding:1.5rem;position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto;}
+.chat-panel{background:#fff;border-left:2px solid var(--border);padding:0;position:sticky;top:64px;height:calc(100vh - 64px);display:flex;flex-direction:column;}
+.panel-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:1.2rem;padding-bottom:.6rem;border-bottom:2px solid var(--border);}
+
+/* ── 로그인 패널 ── */
+.form-group{margin-bottom:.9rem;}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px;}
+.form-group input,.form-group textarea,.form-group select{
+  width:100%;padding:9px 12px;background:#fff;
+  border:1.5px solid var(--border2);border-radius:8px;
+  color:var(--text);font-family:inherit;font-size:14px;transition:border-color .18s;
+}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{outline:none;border-color:var(--accent);}
+.form-msg{font-size:12px;margin-top:6px;padding:7px 10px;border-radius:6px;}
+.form-msg.error{background:#fef2f2;color:var(--accent2);border:1px solid #fecaca;}
+.form-msg.success{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;}
+.divider{text-align:center;color:var(--muted);font-size:11px;margin:1rem 0;position:relative;}
+.divider::before,.divider::after{content:'';position:absolute;top:50%;width:40%;height:1px;background:var(--border);}
+.divider::before{left:0;}.divider::after{right:0;}
+
+/* 로그인 후 패널 */
+.user-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#6366f1);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;color:#fff;margin-bottom:.8rem;}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.stat-row:last-child{border-bottom:none;}
+.stat-val{color:var(--accent);font-weight:700;}
+.balance-display{background:var(--bg2);border:1.5px solid var(--border);border-radius:10px;padding:12px;margin:1rem 0;text-align:center;}
+.balance-val{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--accent);letter-spacing:1px;}
+
+/* ── 경매 목록 ── */
+.auction-main{padding:1.5rem;background:var(--bg2);}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;}
+.section-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px;color:var(--text);}
+.live-badge{display:inline-flex;align-items:center;gap:5px;background:#fef2f2;color:var(--accent2);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1.5px solid #fecaca;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--accent2);animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
+
+.auction-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;}
+.auction-card{background:#fff;border-radius:var(--radius);border:2px solid var(--border);overflow:hidden;cursor:pointer;transition:transform .18s,border-color .18s,box-shadow .18s;}
+.auction-card:hover{transform:translateY(-3px);border-color:var(--accent);box-shadow:var(--shadow2);}
+.card-img{width:100%;height:160px;object-fit:cover;display:block;background:var(--bg3);}
+.card-body{padding:.8rem;}
+.card-title{font-size:13px;font-weight:600;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
+.card-price{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--accent);letter-spacing:1px;}
+.card-meta{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--muted);}
+.timer-badge{font-size:11px;color:var(--accent2);font-weight:600;}
+
+/* ── 채팅 패널 ── */
+.chat-header{padding:1rem 1.2rem .8rem;border-bottom:2px solid var(--border);}
+.chat-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+.chat-messages{flex:1;overflow-y:auto;padding:.8rem 1rem;display:flex;flex-direction:column;gap:.5rem;}
+.chat-msg{font-size:13px;line-height:1.5;}
+.chat-msg .name{font-weight:700;color:var(--accent);margin-right:6px;font-size:12px;}
+.chat-msg .name.admin-name{color:var(--admin);}
+.chat-msg .text{color:var(--text);}
+.chat-msg .time{font-size:10px;color:var(--muted);margin-left:4px;}
+.chat-input-area{padding:.8rem 1rem;border-top:2px solid var(--border);display:flex;gap:6px;}
+.chat-input{flex:1;padding:8px 10px;border:1.5px solid var(--border2);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);}
+.chat-input:focus{outline:none;border-color:var(--accent);}
+.chat-send{padding:8px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;transition:background .18s;}
+.chat-send:hover{background:#1344c0;}
+
+/* ── 경매 상세 ── */
+#page-detail{padding:1.5rem;background:var(--bg2);min-height:calc(100vh - 64px);}
+.detail-back{display:inline-flex;align-items:center;gap:6px;color:var(--text2);font-size:13px;cursor:pointer;margin-bottom:1.5rem;background:none;border:none;font-family:inherit;}
+.detail-back:hover{color:var(--accent);}
+.detail-grid{display:grid;grid-template-columns:1fr 400px;gap:1.5rem;}
+.detail-img{width:100%;border-radius:var(--radius);object-fit:cover;max-height:440px;background:var(--bg3);border:2px solid var(--border);}
+.detail-title{font-size:1.6rem;font-weight:700;margin-bottom:.8rem;color:var(--text);}
+.detail-desc{color:var(--text2);font-size:14px;line-height:1.7;margin-bottom:1.2rem;}
+.price-block{background:#fff;border:2px solid var(--border);border-radius:var(--radius);padding:1.2rem;margin-bottom:1rem;}
+.price-label{font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
+.price-val{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:var(--accent);letter-spacing:2px;}
+.bid-input-row{display:flex;gap:8px;margin:1rem 0;}
+.bid-input{flex:1;padding:11px 14px;background:#fff;border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:15px;font-family:inherit;}
+.bid-input:focus{outline:none;border-color:var(--accent);}
+.bid-btn{padding:11px 20px;background:var(--accent);color:#fff;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;font-family:inherit;transition:all .18s;white-space:nowrap;}
+.bid-btn:hover{background:#1344c0;transform:translateY(-1px);}
+.bid-btn:disabled{background:var(--bg3);color:var(--muted);cursor:not-allowed;transform:none;}
+.timer-display{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:.8rem;}
+.timer-val{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--accent2);}
+.bid-history{background:#fff;border:2px solid var(--border);border-radius:var(--radius);padding:1.2rem;max-height:280px;overflow-y:auto;}
+.bid-history h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:.8rem;}
+.bid-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.bid-item:last-child{border-bottom:none;}
+.bid-item .amount{color:var(--accent);font-weight:700;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;}
+.bid-item .time{color:var(--muted);font-size:11px;}
+.ended-overlay{background:#fef2f2;border:2px solid #fecaca;border-radius:var(--radius);padding:1rem;text-align:center;color:var(--accent2);font-weight:700;margin:1rem 0;}
+.admin-controls{background:#faf5ff;border:2px solid #e9d5ff;border-radius:var(--radius);padding:1rem;margin-top:1rem;}
+.admin-controls h4{font-size:11px;font-weight:700;color:var(--admin);text-transform:uppercase;letter-spacing:1px;margin-bottom:.8rem;}
+.admin-controls .btn-row{display:flex;gap:8px;}
+
+/* ── 모달 ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:300;display:flex;align-items:center;justify-content:center;}
+.modal{background:#fff;border:2px solid var(--border);border-radius:16px;padding:2rem;width:480px;max-width:94vw;max-height:90vh;overflow-y:auto;animation:fadeUp .22s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.modal h2{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;margin-bottom:1.2rem;color:var(--accent);}
+.modal-footer{display:flex;gap:8px;margin-top:1rem;}
+
+/* ── 로그인/회원가입 페이지 ── */
+#page-login{min-height:calc(100vh - 64px);background:var(--bg2);display:none;align-items:center;justify-content:center;padding:2rem;}
+#page-login.active { display: flex !important; }
+.auth-card{background:#fff;border:2px solid var(--border);border-radius:16px;padding:2.5rem;width:400px;max-width:94vw;box-shadow:var(--shadow2);}
+.auth-card .auth-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:2px;color:var(--accent);margin-bottom:1.5rem;text-align:center;}
+
+/* ── 내 정보 페이지 ── */
+#page-mypage{padding:2rem;background:var(--bg2);min-height:calc(100vh - 64px);}
+.mypage-grid{display:grid;grid-template-columns:320px 1fr;gap:1.5rem;max-width:1100px;margin:0 auto;}
+.info-card{background:#fff;border:2px solid var(--border);border-radius:var(--radius);padding:1.5rem;}
+.info-card h3{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:1.2rem;padding-bottom:.6rem;border-bottom:2px solid var(--border);}
+.charge-amounts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:.8rem 0;}
+.charge-btn{padding:10px;border:1.5px solid var(--border2);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;font-size:13px;cursor:pointer;transition:all .18s;text-align:center;}
+.charge-btn:hover{border-color:var(--accent);color:var(--accent);background:#eff6ff;}
+.history-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.history-item:last-child{border-bottom:none;}
+.history-amount{font-weight:700;color:#16a34a;}
+
+/* ── 관리자 페이지 ── */
+#page-admin{padding:2rem;background:var(--bg2);min-height:calc(100vh - 64px);}
+.admin-header{display:flex;align-items:center;gap:12px;margin-bottom:1.5rem;}
+.admin-badge{background:#faf5ff;color:var(--admin);border:1.5px solid #e9d5ff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;}
+.admin-table{width:100%;border-collapse:collapse;background:#fff;border-radius:var(--radius);overflow:hidden;border:2px solid var(--border);}
+.admin-table th{background:var(--bg3);padding:10px 14px;text-align:left;font-size:12px;font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);}
+.admin-table td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.admin-table tr:last-child td{border-bottom:none;}
+.status-badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.status-active{background:#eff6ff;color:var(--accent);}
+.status-ended{background:#f3f4f6;color:var(--muted);}
+
+/* ── 언어 선택 ── */
+/* 언어 선택창 전체를 감싸는 부모 상자 */
+.lang-selector {
+    position: relative; /* 하위 리스트가 이 상자를 기준으로 정렬되도록 함 */
+    display: inline-block;
+}
+
+/* 평소에 보이는 대표 버튼 스타일 */
+.lang-default-btn {
+    background: none;
+    border: 1px solid #ccc;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    color: #333;
+}
+
+/* 마우스 올리기 전: 숨겨질 리스트 상자 */
+.lang-dropdown-content {
+    display: none;        /* 1. 평소에는 화면에서 완전히 숨김 */
+    position: absolute;   /* 2. 기존 레이아웃을 무너뜨리지 않고 둥둥 뜨게 함 */
+    top: 100%;            /* 3. 대표 버튼 바로 아래 자리에 위치 */
+    left: 0;
+    background-color: #ffffff;
+    min-width: 80px;      /* 리스트의 최소 가로 너비 */
+    border: 1px solid #eeeeee;
+    box-shadow: 0px 4px 8px rgba(0,0,0,0.1); /* 살짝 그림자 효과 */
+    z-index: 200;         /* 다른 화면 요소보다 위에 뜨도록 설정 */
+    border-radius: 4px;
+    padding: 4px 0;
+}
+
+/* 내부 세부 버튼들을 세로로 정렬 */
+.lang-dropdown-content .lang-btn {
+    display: block;       /* 가로가 아니라 위아래(세로)로 나열되도록 변경 */
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 8px 12px;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    color: #555;
+}
+
+/* 리스트 안의 버튼들에 마우스 올렸을 때 하이라이트 효과 */
+.lang-dropdown-content .lang-btn:hover {
+    background-color: #f5f5f5;
+    color: #6d28d9; /* 마우스 올리면 보라색으로 강조 */
+}
+
+/* 🔥 핵심: 전체 상자(.lang-selector)에 마우스를 올리면(.hover) 숨겨진 리스트를 보여라! */
+.lang-selector:hover .lang-dropdown-content {
+    display: block;
+}
+
+/* ── 알림 ── */
+.notification{position:fixed;top:76px;right:20px;background:#fff;border:2px solid var(--border);border-left:4px solid var(--accent);border-radius:10px;padding:12px 18px;font-size:13px;z-index:500;animation:slideIn .25s ease;max-width:300px;box-shadow:var(--shadow2);}
+.notification.error{border-left-color:var(--accent2);}
+.notification.success{border-left-color:#16a34a;}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── 카테고리 탭 ── */
+.cat-tabs{display:flex;gap:6px;margin-bottom:1.2rem;flex-wrap:wrap;}
+.cat-tab{padding:6px 16px;border:1.5px solid var(--border2);border-radius:20px;background:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:all .18s;font-family:inherit;color:var(--text2);}
+.cat-tab:hover{border-color:var(--accent);color:var(--accent);}
+.cat-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+/* ── 내 경매 목록 페이지 ── */
+#page-mybids{padding:2rem;background:var(--bg2);min-height:calc(100vh - 64px);}
+.mybids-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-top:1rem;}
+.mybid-card{background:#fff;border:2px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:transform .18s,border-color .18s,box-shadow .18s;}
+.mybid-card:hover{transform:translateY(-3px);border-color:var(--accent);box-shadow:var(--shadow2);}
+.mybid-card img{width:100%;height:140px;object-fit:cover;background:var(--bg3);}
+.mybid-card .card-body{padding:.8rem;}
+.mybid-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;margin-bottom:6px;}
+.mybid-badge.won{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;}
+.mybid-badge.active{background:#eff6ff;color:var(--accent);border:1px solid #bfdbfe;}
+.mybid-badge.ended{background:#f3f4f6;color:var(--muted);border:1px solid var(--border);}
+
+/*test
+/* 전체 컨테이너 설정 */
+.nav-visible {
+    background-color: #1a1a1a; /* 어두운 배경색 */
+    width: 100%;
+    border-bottom: 2px solid #333;
+}
+.at-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+}
+/* 메뉴 리스트 가로 정렬 */
+.menu-ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex; /* 가로로 나열 */
+    align-items: center;
+}
+.menu-li {
+    position: relative; /* 서브 메뉴의 기준점 */
+}
+.menu-a {
+    display: block;
+    padding: 15px 25px;
+    color: #0f0f0f;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+.menu-a:hover {
+    background-color: #f5f5f5;
+}
+
+/* --- 서브 메뉴 (2단계) 스타일 --- */
+.sub-1div {
+    position: absolute;
+    top: 100%; /* 대메뉴 바로 아래 */
+    left: 0;
+    background-color: #2a2a2a;
+    min-width: 180px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    z-index: 100;
+}
+/* 마우스를 올렸을 때만 서브 메뉴 노출 */
+
+.sub-1da {
+    display: block;
+    padding: 10px 15px;
+    color: #ccc;
+    text-decoration: none;
+    border-bottom: 1px solid #3d3d3d;
+}
+.sub-1da:hover {
+    background-color: #444;
+    color: #fff;
+}
+/* --- 경매 세부 메뉴 (3단계) 스타일 --- */
+.sub-2div {
+    position: absolute;
+    left: 100%; /* 2단계 메뉴의 오른쪽 옆으로 */
+    top: 0;
+    background-color: #333;
+    min-width: 150px;
+}
+/* 2단계 메뉴에 마우스 올리면 3단계 노출 */
+.sub-1dli:hover .sub-2div {
+    display: block !important;
+}
+.sub-2da {
+    display: block;
+    padding: 8px 15px;
+    color: #bbb;
+    text-decoration: none;
+    font-size: 13px;
+}
+.sub-2da:hover {
+    background-color: #6d28d9; /* 아까 언급된 보라색 포인트 */
+    color: #fff;
+}
+/* 유틸리티: 텍스트 보조 설명 */
+.header-desc {
+    display: block;
+    font-size: 11px;
+    color: #888;
+}
+
+/* ── 반응형 ── */
+@media(max-width:1100px){.home-layout{grid-template-columns:260px 1fr;}.chat-panel{display:none;}}
+@media(max-width:800px){.home-layout{grid-template-columns:1fr;}.detail-grid{grid-template-columns:1fr;}.mypage-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<!-- ── 헤더 ── -->
+<header>
+  <div class="logo" onclick="showPage('home')">BID<span>HOUSE</span></div>
+  
+  <nav class="menu-area">
+    <ul class="menu-ul">
+      <li class="menu-li"><a class="menu-a" href="/auction">실시간 경매</a></li>
+      <li class="menu-li"><a class="menu-a" href="/movie">최신 영화</a></li>
+      <li class="menu-li"><a class="menu-a" href="#" onclick="showPage('game'); return false;">인기 게임</a></li>
+    </ul>
+  </nav>
+
+  <div class="header-right" style="display: flex; align-items: center; gap: 8px;">
+    
+    <div class="lang-selector">
+      <button class="lang-default-btn">🌐 KO</button>
+      <div class="lang-dropdown-content">
+        <button class="lang-btn active" onclick="setLang('ko')">KO</button>
+        <button class="lang-btn" onclick="setLang('en')">EN</button>
+        <button class="lang-btn" onclick="setLang('zh')">中</button>
+        <button class="lang-btn" onclick="setLang('ja')">日</button>
+      </div>
+    </div> 
+
+    <nav id="nav-area"></nav>
+
+  </div> </header>
+
+
+<!-- ══════════════════════ 홈 ══════════════════════ -->
+<div id="page-home" class="page active">
+  <div class="home-layout">
+
+    <!-- 좌측 패널 -->
+    <aside class="side-panel" id="left-panel">
+      <!-- 로그인 폼 -->
+      <div id="login-form-wrap">
+        <div class="panel-title" data-i18n="login">로그인</div>
+        <div class="form-group">
+          <label data-i18n="username">아이디</label>
+          <input type="text" id="login-id" data-i18n-ph="username_ph" placeholder="아이디" onkeydown="if(event.key==='Enter')doLogin()"/>
+        </div>
+        <div class="form-group">
+          <label data-i18n="password">비밀번호</label>
+          <input type="password" id="login-pw" data-i18n-ph="password_ph" placeholder="비밀번호" onkeydown="if(event.key==='Enter')doLogin()"/>
+        </div>
+        <div id="login-msg"></div>
+        <button class="btn btn-primary" style="width:100%;margin-top:.3rem" onclick="doLogin()" data-i18n="login_btn">로그인</button>
+        <div class="divider" data-i18n="or">또는</div>
+        <button class="btn btn-outline" style="width:100%" onclick="showPage('login')" data-i18n="register_btn">회원가입</button>
+      </div>
+
+      <!-- 로그인 후 -->
+      <div id="logged-panel-wrap" style="display:none">
+        <div class="panel-title" data-i18n="my_info">내 정보</div>
+        <div class="user-avatar" id="avatar-letter">U</div>
+        <div style="font-size:1rem;font-weight:700;margin-bottom:.3rem" id="panel-username"></div>
+        <div class="balance-display">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px" data-i18n="balance">보유 잔액</div>
+          <div class="balance-val" id="panel-balance">0원</div>
+        </div>
+        <div class="stat-row"><span data-i18n="bid_count">참여 경매</span><span class="stat-val" id="my-bids-count" onclick="showMyBids('bids')" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px" title="클릭하면 목록 보기">-</span></div>
+        <div class="stat-row"><span data-i18n="win_count">낙찰</span><span class="stat-val" id="my-wins-count" onclick="showMyBids('wins')" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px" title="클릭하면 목록 보기">-</span></div>
+        <button class="btn btn-outline" style="width:100%;margin-top:1rem" onclick="showPage('mypage')" data-i18n="mypage_btn">내 정보 페이지</button>
+        <button id="admin-panel-btn" class="btn btn-admin" style="width:100%;margin-top:.5rem;display:none" onclick="showPage('admin')" data-i18n="admin_btn">관리자 설정</button>
+        <button class="btn btn-ghost" style="width:100%;margin-top:.5rem" onclick="doLogout()" data-i18n="logout">로그아웃</button>
+      </div>
+    </aside>
+
+    <!-- 경매 목록 -->
+    <main class="auction-main">
+      <div class="section-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="section-title" data-i18n="live_auction">진행중인 경매</span>
+          <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+        </div>
+        <span id="auction-count" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+      <!-- 카테고리 탭 -->
+      <div class="cat-tabs" id="cat-tabs">
+        <button class="cat-tab active" onclick="filterCategory('all')" data-cat="all">🏷️ 전체</button>
+        <button class="cat-tab" onclick="filterCategory('art')" data-cat="art">🎨 미술품/골동품</button>
+        <button class="cat-tab" onclick="filterCategory('digital')" data-cat="digital">💻 IT/전자기기</button>
+        <button class="cat-tab" onclick="filterCategory('luxury')" data-cat="luxury">💎 명품/시계</button>
+        <button class="cat-tab" onclick="filterCategory('car')" data-cat="car">🚗 중고차/모빌리티</button>
+        <button class="cat-tab" onclick="filterCategory('etc')" data-cat="etc">📦 기타</button>
+      </div>
+
+      <div class="auction-grid" id="auction-grid">
+        <div style="color:var(--muted);font-size:14px;grid-column:1/-1;text-align:center;padding:2rem">불러오는 중...</div>
+      </div>
+    </main>
+
+    <!-- 우측 채팅 패널 -->
+    <div class="chat-panel">
+      <div class="chat-header">
+        <div class="chat-title" data-i18n="live_chat">💬 실시간 채팅</div>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-area">
+        <input class="chat-input" id="chat-input" data-i18n-ph="chat_ph" placeholder="메시지 입력..." maxlength="200" onkeydown="if(event.key==='Enter')sendChat()"/>
+        <button class="chat-send" onclick="sendChat()" data-i18n="send">전송</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ 로그인/회원가입 페이지 ══════════════════════ -->
+<div id="page-login" class="page">
+  <div class="auth-card">
+    <!-- 탭 버튼 -->
+    <div style="display:flex;gap:8px;margin-bottom:1.5rem">
+      <button class="btn btn-primary" style="flex:1" id="tab-login-btn" onclick="switchAuthTab('login')">로그인</button>
+      <button class="btn btn-outline" style="flex:1" id="tab-reg-btn" onclick="switchAuthTab('register')">회원가입</button>
+    </div>
+
+    <!-- 로그인 탭 -->
+    <div id="auth-login-tab">
+      <div class="form-group">
+        <label>아이디</label>
+        <input type="text" id="page-login-id" placeholder="아이디" onkeydown="if(event.key==='Enter')doLoginPage()"/>
+      </div>
+      <div class="form-group">
+        <label>비밀번호</label>
+        <input type="password" id="page-login-pw" placeholder="비밀번호" onkeydown="if(event.key==='Enter')doLoginPage()"/>
+      </div>
+      <div id="waf-captcha-box" style="display:none; margin:12px 0;"></div>
+      <div id="page-login-msg"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:.5rem" onclick="doLoginPage()">로그인</button>
+    </div>
+
+    <!-- 회원가입 탭 -->
+    <div id="auth-register-tab" style="display:none">
+      <div class="form-group">
+        <label>아이디 (4자 이상)</label>
+        <input type="text" id="reg-id" placeholder="아이디"/>
+      </div>
+      <div class="form-group">
+        <label>비밀번호 (12자 이상, 대소문자+숫자+특수문자 포함)</label>
+        <input type="password" id="reg-pw" placeholder="비밀번호"/>
+      </div>
+      <div class="form-group">
+        <label>이메일 <span style="color:var(--accent2)">*</span> <span style="font-size:11px;color:var(--muted)">(인증 코드 발송)</span></label>
+        <input type="email" id="reg-email" placeholder="이메일"/>
+      </div>
+      <div id="reg-msg"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:.5rem" onclick="doRegister()">가입하기</button>
+    </div>
+    <!-- 이메일 인증 탭 -->
+    <div id="auth-confirm-tab" style="display:none">
+      <div style="text-align:center;margin-bottom:1.2rem">
+        <div style="font-size:2rem;margin-bottom:.5rem">📧</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.6">
+          <strong id="confirm-email-display"></strong>로<br/>인증 코드를 발송했습니다.
+        </div>
+      </div>
+      <div class="form-group">
+        <label>인증 코드 (6자리)</label>
+        <input type="text" id="confirm-code" placeholder="123456" maxlength="6"
+          style="text-align:center;font-size:1.4rem;letter-spacing:6px;font-weight:700"
+          onkeydown="if(event.key==='Enter')doConfirm()"/>
+      </div>
+      <div id="confirm-msg"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:.5rem" onclick="doConfirm()">인증 완료</button>
+      <button class="btn btn-ghost" style="width:100%;margin-top:.5rem;font-size:13px" onclick="doResendCode()">코드 재전송</button>
+      <div style="text-align:center;margin-top:.8rem">
+        <button onclick="switchAuthTab('register')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit">← 회원가입으로 돌아가기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ 경매 상세 ══════════════════════ -->
+<div id="page-detail" class="page">
+  <div style="padding:1.5rem;background:var(--bg2);min-height:calc(100vh - 64px)">
+    <button class="detail-back" onclick="showPage('home')">← <span data-i18n="back_list">목록으로</span></button>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════ 내 정보 페이지 ══════════════════════ -->
+<div id="page-mypage" class="page">
+  <div style="max-width:1100px;margin:0 auto;padding:2rem">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.5rem">
+      <button class="detail-back" onclick="showPage('home')" style="margin-bottom:0">←</button>
+      <h1 style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:2px" data-i18n="my_info">내 정보</h1>
+    </div>
+    <div class="mypage-grid">
+      <!-- 프로필 카드 -->
+      <div>
+        <div class="info-card" style="margin-bottom:1rem">
+          <h3 data-i18n="profile">프로필</h3>
+          <div class="user-avatar" id="mypage-avatar" style="width:64px;height:64px;font-size:1.6rem;margin-bottom:.8rem">U</div>
+          <div style="font-size:1.1rem;font-weight:700" id="mypage-username"></div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px" id="mypage-email"></div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px" id="mypage-joined"></div>
+        </div>
+
+        <!-- 잔액 충전 -->
+        <div class="info-card">
+          <h3 data-i18n="charge_title">잔액 충전</h3>
+          <div class="balance-display">
+            <div style="font-size:11px;color:var(--muted)" data-i18n="balance">보유 잔액</div>
+            <div class="balance-val" id="mypage-balance">0원</div>
+          </div>
+          <div class="charge-amounts">
+            <button class="charge-btn" onclick="chargeBalance(10000)">+1만원</button>
+            <button class="charge-btn" onclick="chargeBalance(50000)">+5만원</button>
+            <button class="charge-btn" onclick="chargeBalance(100000)">+10만원</button>
+            <button class="charge-btn" onclick="chargeBalance(500000)">+50만원</button>
+            <button class="charge-btn" onclick="chargeBalance(1000000)">+100만원</button>
+            <button class="charge-btn" onclick="chargeBalance(10000000)">+1000만원</button>
+          </div>
+          <div class="form-group" style="margin-top:.5rem">
+            <label data-i18n="custom_amount">직접 입력</label>
+            <input type="number" id="custom-charge" placeholder="금액 입력" min="1000"/>
+          </div>
+          <button class="btn btn-primary" style="width:100%" onclick="chargeCustom()" data-i18n="charge_btn">충전하기</button>
+          <div id="charge-msg" style="margin-top:.5rem"></div>
+        </div>
+      </div>
+
+      <!-- 우측 내역 -->
+      <div>
+        <div class="info-card" style="margin-bottom:1rem">
+          <h3 data-i18n="my_stats">내 통계</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div style="background:var(--bg2);border-radius:10px;padding:1rem;text-align:center;cursor:pointer" onclick="showMyBids('bids')" title="클릭하면 목록 보기">
+              <div style="font-size:11px;color:var(--muted)" data-i18n="bid_count">참여 경매</div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--accent)" id="stat-bids">0</div>
+              <div style="font-size:10px;color:var(--accent);margin-top:2px">클릭하여 보기 →</div>
+            </div>
+            <div style="background:var(--bg2);border-radius:10px;padding:1rem;text-align:center;cursor:pointer" onclick="showMyBids('wins')" title="클릭하면 목록 보기">
+              <div style="font-size:11px;color:var(--muted)" data-i18n="win_count">낙찰</div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#16a34a" id="stat-wins">0</div>
+              <div style="font-size:10px;color:#16a34a;margin-top:2px">클릭하여 보기 →</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <h3 data-i18n="balance_history">충전 내역</h3>
+          <div id="balance-history-list" style="max-height:300px;overflow-y:auto">
+            <div style="color:var(--muted);font-size:13px;text-align:center;padding:1rem">내역 없음</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ 관리자 페이지 ══════════════════════ -->
+<div id="page-admin" class="page">
+  <div style="max-width:1200px;margin:0 auto;padding:2rem">
+    <div class="admin-header">
+      <button class="detail-back" onclick="showPage('home')" style="margin-bottom:0">←</button>
+      <h1 style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:2px" data-i18n="admin_page">관리자 설정</h1>
+      <span class="admin-badge">ADMIN</span>
+    </div>
+
+    <!-- 경매 등록 버튼 -->
+    <div style="display:flex;gap:8px;margin-bottom:1.5rem">
+      <button class="btn btn-admin" onclick="showSellModal()" data-i18n="register_auction">＋ 경매 등록</button>
+    </div>
+
+    <!-- 경매 목록 테이블 -->
+    <div style="background:#fff;border:2px solid var(--border);border-radius:var(--radius);overflow:hidden">
+      <div style="padding:1rem 1.2rem;border-bottom:2px solid var(--border);font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px" data-i18n="all_auctions">전체 경매 관리</div>
+      <div style="overflow-x:auto">
+        <table class="admin-table" id="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th data-i18n="item_name">물품명</th>
+              <th data-i18n="current_price">현재가</th>
+              <th data-i18n="bid_count">입찰수</th>
+              <th data-i18n="status">상태</th>
+              <th data-i18n="end_time">종료시각</th>
+              <th data-i18n="actions">관리</th>
+            </tr>
+          </thead>
+          <tbody id="admin-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ 내 경매 목록 페이지 ══════════════════════ -->
+<div id="page-mybids" class="page">
+  <div style="max-width:1100px;margin:0 auto;padding:2rem">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.5rem">
+      <button class="detail-back" onclick="history.back()" style="margin-bottom:0">←</button>
+      <h1 style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:2px" id="mybids-title">참여한 경매</h1>
+    </div>
+    <div class="mybids-grid" id="mybids-grid">
+      <div style="color:var(--muted);font-size:14px;grid-column:1/-1;text-align:center;padding:3rem">불러오는 중...</div>
+    </div>
+  </div>
+</div>
+
+<div id="page-game" class="page">
+  <div style="max-width:600px; margin:0 auto; padding:2rem; text-align:center;">
+    <button class="detail-back" onclick="showPage('home')" style="margin-bottom:1rem;">← 홈으로</button>
+    <h1 style="font-family:'Bebas Neue',sans-serif; font-size:2rem; color:var(--accent); letter-spacing:2px;">BRICK BREAKER</h1>
+    <p style="font-size:12px; color:var(--muted); margin-bottom:1rem;">블록을 부수고 경매 자금을 모으세요! (10점당 1원)</p>
+
+    <div style="position:relative; display:inline-block;">
+      <canvas id="gameCanvas" width="480" height="320" style="background:#111; border-radius:8px; box-shadow:var(--shadow2);"></canvas>
+
+      <div id="game-overlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.7); border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <div id="game-result-msg" style="color:#fff; font-size:1.5rem; font-weight:bold; margin-bottom:1rem;"></div>
+        <button class="btn btn-primary" onclick="initGame()" style="font-size:1.2rem; padding:10px 30px;">게임 시작</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 경매 등록 모달 ── -->
+<div class="modal-overlay" id="sell-modal" style="display:none" onclick="if(event.target===this)hideSellModal()">
+  <div class="modal">
+    <h2 data-i18n="register_auction">경매 등록</h2>
+    <div class="form-group"><label data-i18n="item_name">제목 *</label><input type="text" id="sell-title" placeholder="물품명"/></div>
+    <div class="form-group"><label>설명</label><textarea id="sell-desc" placeholder="물품 설명" style="min-height:70px;resize:vertical"></textarea></div>
+    <div class="form-group"><label>이미지 파일</label><input type="file" id="sell-img" accept="image/*"/></div>
+    <div class="form-group">
+      <label>카테고리 *</label>
+      <select id="sell-category">
+        <option value="art">🎨 미술품/골동품</option>
+        <option value="digital">💻 IT/전자기기</option>
+        <option value="luxury">💎 명품/시계</option>
+        <option value="car">🚗 중고차/모빌리티</option>
+        <option value="etc">📦 기타</option>
+      </select>
+    </div>
+    <div class="form-group"><label data-i18n="start_price">시작가 (원) *</label><input type="number" id="sell-price" placeholder="10000" min="0"/></div>
+    <div class="form-group"><label>최소 입찰 단위</label><input type="number" id="sell-increment" value="1000" min="100"/></div>
+    <div class="form-group"><label data-i18n="end_time">종료 시각 *</label><input type="datetime-local" id="sell-end"/></div>
+    <div id="sell-msg"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" style="flex:1" onclick="hideSellModal()" data-i18n="cancel">취소</button>
+      <button class="btn btn-primary" style="flex:2" onclick="doSellSubmit()" data-i18n="register_btn">등록하기</button>
+    </div>
+  </div>
+</div>
+
+<div id="notif-container"></div>
+
+<script src="https://api.bidhouse.cloud/socket.io/socket.io.js"></script>
+<script>
+// ══════════════════════════════════
+//  다국어 번역 데이터
+// ══════════════════════════════════
+const i18n = {
+  ko: { login:'로그인', password:'비밀번호', username:'아이디', login_btn:'로그인', register_btn:'가입하기', register:'회원가입', logout:'로그아웃', my_info:'내 정보', balance:'보유 잔액', bid_count:'참여 경매', win_count:'낙찰', mypage_btn:'내 정보 페이지', admin_btn:'관리자 설정', live_auction:'진행중인 경매', live_chat:'💬 실시간 채팅', send:'전송', back_home:'← 홈으로', back_list:'목록으로', profile:'프로필', charge_title:'잔액 충전', custom_amount:'직접 입력', charge_btn:'충전하기', balance_history:'충전 내역', my_stats:'내 통계', admin_page:'관리자 설정', register_auction:'경매 등록', all_auctions:'전체 경매 관리', item_name:'물품명', current_price:'현재가', status:'상태', end_time:'종료시각', actions:'관리', cancel:'취소', start_price:'시작가', or:'또는', username_ph:'아이디', password_ph:'비밀번호', chat_ph:'메시지 입력...' },
+  en: { login:'Login', password:'Password', username:'Username', login_btn:'Login', register_btn:'Register', register:'Register', logout:'Logout', my_info:'My Info', balance:'Balance', bid_count:'Bids', win_count:'Wins', mypage_btn:'My Page', admin_btn:'Admin Panel', live_auction:'Live Auctions', live_chat:'💬 Live Chat', send:'Send', back_home:'← Back', back_list:'Back to List', profile:'Profile', charge_title:'Add Funds', custom_amount:'Custom Amount', charge_btn:'Charge', balance_history:'History', my_stats:'My Stats', admin_page:'Admin Panel', register_auction:'+ New Auction', all_auctions:'Manage Auctions', item_name:'Item', current_price:'Price', status:'Status', end_time:'Ends At', actions:'Actions', cancel:'Cancel', start_price:'Start Price', or:'or', username_ph:'Username', password_ph:'Password', chat_ph:'Type a message...' },
+  zh: { login:'登录', password:'密码', username:'用户名', login_btn:'登录', register_btn:'注册', register:'注册', logout:'退出', my_info:'我的信息', balance:'余额', bid_count:'参与拍卖', win_count:'中标', mypage_btn:'个人页面', admin_btn:'管理员', live_auction:'进行中的拍卖', live_chat:'💬 实时聊天', send:'发送', back_home:'← 返回', back_list:'返回列表', profile:'个人资料', charge_title:'充值', custom_amount:'自定义金额', charge_btn:'充值', balance_history:'充值记录', my_stats:'我的统计', admin_page:'管理员面板', register_auction:'+ 新拍卖', all_auctions:'管理拍卖', item_name:'物品', current_price:'当前价', status:'状态', end_time:'结束时间', actions:'操作', cancel:'取消', start_price:'起拍价', or:'或者', username_ph:'用户名', password_ph:'密码', chat_ph:'输入消息...' },
+  ja: { login:'ログイン', password:'パスワード', username:'ユーザー名', login_btn:'ログイン', register_btn:'登録', register:'会員登録', logout:'ログアウト', my_info:'マイページ', balance:'残高', bid_count:'参加中', win_count:'落札', mypage_btn:'マイページ', admin_btn:'管理者', live_auction:'進行中のオークション', live_chat:'💬 ライブチャット', send:'送信', back_home:'← ホーム', back_list:'一覧へ', profile:'プロフィール', charge_title:'残高チャージ', custom_amount:'金額を入力', charge_btn:'チャージ', balance_history:'履歴', my_stats:'統計', admin_page:'管理者パネル', register_auction:'+ 出品', all_auctions:'オークション管理', item_name:'商品名', current_price:'現在価格', status:'状態', end_time:'終了時刻', actions:'操作', cancel:'キャンセル', start_price:'開始価格', or:'または', username_ph:'ユーザー名', password_ph:'パスワード', chat_ph:'メッセージを入力...' }
+};
+
+let currentLang = 'ko';
+function setLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.lang-btn').forEach(b => { if(b.textContent.trim() === {ko:'KO',en:'EN',zh:'中',ja:'日'}[lang]) b.classList.add('active'); });
+  document.querySelector('.lang-default-btn').textContent = `🌐 ${{ko:'KO', en:'EN', zh:'中', ja:'日'}[lang]}`;
+  const t = i18n[lang];
+  document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.getAttribute('data-i18n'); if(t[k]) el.textContent = t[k]; });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { const k = el.getAttribute('data-i18n-ph'); if(t[k]) el.placeholder = t[k]; });
+  const fontMap = { ko:'Noto Sans KR', en:'Noto Sans KR', zh:'Noto Sans SC', ja:'Noto Sans JP' };
+  document.body.style.fontFamily = `'${fontMap[lang]}', sans-serif`;
+}
+function T(key) { return i18n[currentLang][key] || i18n.ko[key] || key; }
+
+// ══════════════════════════════════
+//  상태
+// ══════════════════════════════════
+const API_BASE_URL = 'https://api.bidhouse.cloud';
+const WAF_CAPTCHA_API_KEY = 'p23R+pS900hrI/eKCkOk3DRsu2fzG/WSdlqgoXD7vTndVXqdE1n5ORkFAIJYwOR5mQJeREQPPzifTJ5WpM7+HMWmzI8B5h7Cy5SW4iyAY/FxIdpl7ucGIKhtv1zEAdhfXN61v6JRC++yKpPBRWQsldEfW7KEoc5rqSx01hiYCyodTccIrCTp9myNO1oFbuTcFqa/Bt1DYo2zEifqfdV4XTmZAX9eiTV5fSVg46cRYd1mzzli3Mm8S1aADSNfkfxvKWJvNuwcHcUQRm43bvSEImznJeNmgoF+GDS1kvwTpFTJAgnuCLRqYl/2HIAQZA01603jpMcvka9izwbbYLJ5zLEcdjnlH3CtqPuI772fqobvCXGxhLtPv7Fpmkv378XzB88wXoaNl+wep9H3/fN4G8431n/jlU52K91/JmaGcOjZ/GT2gwVaYQuUQ1V/HHEzYEAxqkt0KZGLAo2TeuixgAtj2J3IzhWsP3FXT/xoJsJ95yDdjsCib6H/N9/C3ISRNTGuxL67VpnxrruSbLQU03pWSrr9Eaa09is9JFErPb3B+K+0pUrLQPpU1d3w9wEvot49lN/ZgGQYlrRqLkpzCdlu/6iTkBtddQ2w51WubzSKOO/tt+vV2AdUrpstpaK7bfYfFjoiib14Zyg1waC4oNOm7kBG2vPxFaK2gjFPFI0=_0_1';
+
+function isCaptchaProtectedPath(path) {
+  return path.includes('/api/auth/login') || path.includes('/api/auth/register');
+}
+
+async function ensureWafCaptchaToken() {
+  if (!window.AwsWafIntegration || !window.AwsWafCaptcha) {
+    throw new Error('AWS WAF CAPTCHA 스크립트가 로드되지 않았습니다.');
+  }
+  if (AwsWafIntegration.hasToken && AwsWafIntegration.hasToken()) {
+    return AwsWafIntegration.getToken();
+  }
+  const box = document.getElementById('waf-captcha-box');
+  if (!box) throw new Error('waf-captcha-box 요소가 없습니다.');
+  box.style.display = 'block';
+  box.innerHTML = '';
+  await new Promise((resolve, reject) => {
+    AwsWafCaptcha.renderCaptcha(box, {
+      apiKey: WAF_CAPTCHA_API_KEY,
+      onSuccess: resolve,
+      onError: reject
+    });
+  });
+  box.style.display = 'none';
+  return AwsWafIntegration.getToken();
+}
+
+async function apiFetch(path, options = {}) {
+  const url = /^https?:\/\//i.test(path) ? path : `${API_BASE_URL}${path}`;
+  const nextOptions = { ...options, headers: { ...(options.headers || {}) } };
+  if (isCaptchaProtectedPath(path)) {
+    const wafToken = await ensureWafCaptchaToken();
+    nextOptions.headers['x-aws-waf-token'] = wafToken;
+  }
+  return window.fetch(url, nextOptions);
+}
+
+function resolveImageUrl(url, fallbackSize = '300x160') {
+  const fallback = `https://via.placeholder.com/${fallbackSize}/eef0f7/9ca3af?text=NO+IMAGE`;
+  if (!url) return fallback;
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
+}
+
+let authToken = localStorage.getItem('token') || null;
+let currentUser = null;
+try {
+  currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+  if (currentUser && !currentUser.role) currentUser.role = 'user';
+} catch(e) {
+  currentUser = null;
+}
+let currentAuctionId = null;
+let timerInterval = null;
+let currentCategory = 'all'; // 현재 선택된 카테고리
+let currentPage = 1;
+
+// 인증 헤더 반환
+function getAuthHeaders() {
+  if (!authToken) return {};
+  return { 'Authorization': 'Bearer ' + authToken, 'Content-Type': 'application/json' };
+}
+
+// ══════════════════════════════════
+//  Socket.IO
+// ══════════════════════════════════
+const socket = io(API_BASE_URL, { withCredentials: true });
+socket.on('bid_update', handleBidUpdate);
+socket.on('auction_state', (auction) => {
+  const priceEl = document.getElementById('detail-price');
+  if (priceEl && currentAuctionId == auction.id) {
+    priceEl.textContent = Number(auction.current_price).toLocaleString() + '원';
+    const inp = document.getElementById('bid-amount');
+    if (inp) { inp.value = Number(auction.current_price) + Number(auction.min_bid_increment); inp.step = auction.min_bid_increment; }
+  }
+});
+socket.on('bid_error', ({ message }) => showNotif('⚠️ ' + message, 'error'));
+socket.on('auction_ended', ({ auctionId }) => { if(currentAuctionId == auctionId) loadDetail(auctionId); loadAuctions(); });
+socket.on('chat_history', renderChatHistory);
+socket.on('chat_message', appendChatMsg);
+// 채팅 초기화 수신
+socket.on('chat_cleared', ({ message }) => {
+  const el = document.getElementById('chat-messages');
+  if (!el) return;
+  el.innerHTML = '';
+  // 시스템 메시지로 초기화 알림 표시
+  const div = document.createElement('div');
+  div.style.cssText = 'text-align:center;font-size:11px;color:var(--muted);padding:6px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin:4px 0';
+  div.textContent = '🔄 ' + message;
+  el.appendChild(div);
+});
+
+// 도배 방지 에러 수신
+socket.on('chat_error', ({ message }) => {
+  showNotif('💬 ' + message, 'error');
+});
+socket.emit('get_chat_history');
+
+// ══════════════════════════════════
+//  페이지 라우팅
+// ══════════════════════════════════
+function showPage(name, id, pushState = true) {
+  if (name === 'detail' && !id) return;
+
+  const target = document.getElementById('page-' + name);
+  if (!target) return;
+
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  target.classList.add('active');
+  clearInterval(timerInterval);
+
+  // 브라우저 히스토리에 기록
+  if (pushState) {
+    const state = { name, id: id || null };
+    const url = id ? `?page=${name}&id=${id}` : `?page=${name}`;
+    history.pushState(state, '', name === 'home' ? '/' : url);
+  }
+
+  if (name === 'home') { currentAuctionId = null; loadAuctions(); }
+  if (name === 'detail') loadDetail(id);
+  if (name === 'mypage') loadMyPage();
+  if (name === 'admin') loadAdminPage();
+  if (name === 'mybids') {} // loadMyBids는 showMyBids에서 직접 호출
+}
+// 브라우저 뒤로가기/앞으로가기 감지
+window.addEventListener('popstate', (e) => {
+  const state = e.state;
+  if (!state || state.name === 'home') {
+    showPage('home', null, false);
+  } else {
+    showPage(state.name, state.id, false);
+  }
+});
+// ══════════════════════════════════
+//  네비게이션 렌더
+// ══════════════════════════════════
+function renderNav() {
+  const nav = document.getElementById('nav-area');
+  if (currentUser) {
+    nav.innerHTML = `<span style="font-size:13px;color:var(--text2);margin-right:.5rem">👤 ${currentUser.username}</span>
+      <button class="btn btn-outline" onclick="showPage('mypage')">${T('mypage_btn')}</button>
+      ${currentUser.role==='admin' ? `<button class="btn btn-admin" onclick="showPage('admin')">${T('admin_btn')}</button>` : ''}
+      <button class="btn btn-ghost" onclick="doLogout()">${T('logout')}</button>`;
+    document.getElementById('login-form-wrap').style.display = 'none';
+    document.getElementById('logged-panel-wrap').style.display = 'block';
+    document.getElementById('panel-username').textContent = currentUser.username;
+    document.getElementById('avatar-letter').textContent = currentUser.username[0].toUpperCase();
+    // adminBtn 요소가 존재하면, role이 admin이면 보이게, 아니면 숨기게
+    //비례식 관계 생각하면 이해하기 쉬움, currentuser.role이 admin이면 adminbtn.style.display를 block(보임)하고 아니면 none한다
+    //if (adminBtn) adminBtn.style.display = currentUser.role === 'admin' ? 'block' : 'none';(기존의 이 코드는 currentuser.role이 admin이 아닌경우의 상황이 지정 안되 있으므로 admin계정으로 로그인하고 다시 다른 계정으로 로그인 할 경우 adminBtn.style.display는 block인 상태 그대로 화면에 남음)
+    const adminBtn = document.getElementById('admin-panel-btn');
+    if (adminBtn) adminBtn.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+    loadUserBalance();
+  } else {
+    nav.innerHTML = `<button class="btn btn-outline" onclick="showPage('login')">${T('login')}</button><button class="btn btn-primary" onclick="showPage('login')">${T('register')}</button>`;
+    document.getElementById('login-form-wrap').style.display = 'block';
+    document.getElementById('logged-panel-wrap').style.display = 'none';
+  }
+}
+
+async function loadUserBalance() {
+  if (!authToken) return;
+  const res = await apiFetch('/api/auth/me', { headers: getAuthHeaders() });
+  if (!res.ok) return;
+  const data = await res.json();
+  document.getElementById('panel-balance').textContent = Number(data.balance).toLocaleString() + '원';
+  document.getElementById('my-bids-count').textContent = data.bidCount;
+  document.getElementById('my-wins-count').textContent = data.winCount;
+  document.getElementById('my-wins-count').textContent = data.winCount;
+  checkNotifications(); // ← 이 줄 추가
+}
+
+// ══════════════════════════════════
+//  로그인
+// ══════════════════════════════════
+async function doLogin() {
+  const username = document.getElementById('login-id').value.trim();
+  const password = document.getElementById('login-pw').value;
+  if (!username || !password) return showMsg('login-msg', '아이디와 비밀번호를 입력해주세요.', 'error');
+  const res = await apiFetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username,password}) });
+  const data = await res.json();
+  if (!res.ok) return showMsg('login-msg', data.message, 'error');
+  saveLogin(data);
+}
+
+async function doLoginPage() {
+  const username = document.getElementById('page-login-id').value.trim();
+  const password = document.getElementById('page-login-pw').value;
+  if (!username || !password) return showMsg('page-login-msg', '아이디와 비밀번호를 입력해주세요.', 'error');
+  const res = await apiFetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username,password}) });
+  const data = await res.json();
+  if (!res.ok) return showMsg('page-login-msg', data.message, 'error');
+  saveLogin(data);
+  showPage('home');
+}
+
+function saveLogin(data) {
+  authToken = data.token;
+  currentUser = {
+    username: data.username,
+    userId: data.userId,
+    role: data.role || 'user'
+  };
+  localStorage.setItem('token', authToken);
+  localStorage.setItem('user', JSON.stringify(currentUser));
+  renderNav();
+  showPage('home'); // 로그인 완료 후 홈으로 이동
+  loadAuctions();   // 경매 목록 불러오기
+}
+
+async function doRegister() {
+  const username = document.getElementById('reg-id').value.trim();
+  const password = document.getElementById('reg-pw').value;
+  const email = document.getElementById('reg-email').value.trim();
+  const res = await apiFetch('/api/auth/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username,password,email}) });
+  const data = await res.json();
+  if (!res.ok) return showMsg('reg-msg', data.message, 'error');
+  if (data.requireConfirm) {
+    document.getElementById('confirm-email-display').textContent = data.email;
+    switchAuthTab('confirm');
+  } else {
+  showMsg('reg-msg', '가입 완료! 로그인해주세요.', 'success');
+  setTimeout(() => switchAuthTab('login'), 1200);
+  }
+}
+
+function doLogout() {
+  authToken = null; currentUser = null;
+  localStorage.removeItem('token'); localStorage.removeItem('user');
+  renderNav(); showPage('home');
+}
+
+function switchAuthTab(tab) {
+  document.getElementById('auth-login-tab').style.display = tab==='login' ? 'block' : 'none';
+  document.getElementById('auth-register-tab').style.display = tab==='register' ? 'block' : 'none';
+  document.getElementById('auth-confirm-tab').style.display = tab==='confirm' ? 'block' : 'none';
+  document.getElementById('tab-login-btn').className = 'btn ' + (tab==='login' ? 'btn-primary' : 'btn-outline');
+  document.getElementById('tab-reg-btn').className = 'btn ' + (tab==='register' ? 'btn-primary' : 'btn-outline');
+  // 인증 탭일 때는 탭 버튼 숨김
+  const tabBtns = document.querySelector('#page-login .auth-card > div:first-child');
+  if (tabBtns) tabBtns.style.display = tab==='confirm' ? 'none' : 'flex';
+}
+async function doConfirm() {
+  const email = document.getElementById('confirm-email-display').textContent;
+  const code = document.getElementById('confirm-code').value.trim();
+  if (!code || code.length !== 6) return showMsg('confirm-msg', '6자리 인증 코드를 입력해주세요.', 'error');
+  showMsg('confirm-msg', '확인 중...', '');
+  const res = await apiFetch('/api/auth/confirm', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, code}) });
+  const data = await res.json();
+  if (!res.ok) return showMsg('confirm-msg', data.message, 'error');
+  showMsg('confirm-msg', '✅ 인증 완료! 로그인해주세요.', 'success');
+  setTimeout(() => switchAuthTab('login'), 1200);
+}
+
+async function doResendCode() {
+  const email = document.getElementById('confirm-email-display').textContent;
+  if (!email) return;
+  const res = await apiFetch('/api/auth/resend-code', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email}) });
+  const data = await res.json();
+  showMsg('confirm-msg', data.message, res.ok ? 'success' : 'error');
+}
+
+// ══════════════════════════════════
+//  경매 목록
+// ══════════════════════════════════
+async function loadAuctions(page = currentPage) {
+  const catParam = currentCategory !== 'all' ? `&category=${currentCategory}` : '';
+  const res = await apiFetch(`/api/auctions?status=active&page=${page}&limit=12${catParam}`);
+  const data = await res.json();
+  const grid = document.getElementById('auction-grid');
+  const totalPages = Math.ceil(data.total / 12);
+
+  document.getElementById('auction-count').textContent = `총 ${data.total}건`;
+
+  if (!data.auctions.length) {
+    grid.innerHTML = `<div style="color:var(--muted);font-size:14px;grid-column:1/-1;text-align:center;padding:3rem">진행중인 경매가 없습니다.</div>`;
+    renderPagination(0, page);
+    return;
+  }
+
+  grid.innerHTML = data.auctions.map(a => `
+    <div class="auction-card" onclick="showPage('detail',${a.id})">
+      <img class="card-img" src="${resolveImageUrl(a.image_url, '300x160')}" alt="${a.title}" onerror="this.src='https://via.placeholder.com/300x160/eef0f7/9ca3af?text=NO+IMAGE'"/>
+      <div class="card-body">
+        <div class="card-title">${a.title}</div>
+        <div class="card-price">${Number(a.current_price).toLocaleString()}원</div>
+        <div class="card-meta">
+          <span>${a.bid_count}회 입찰</span>
+          <span class="timer-badge" id="ctimer-${a.id}"></span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  data.auctions.forEach(a => tickCardTimer(a.id, a.end_time));
+  renderPagination(data.total, page);
+}
+
+// 페이지 버튼 그리는 함수
+function renderPagination(total, page) {
+  const existing = document.getElementById('pagination');
+  if (existing) existing.remove();
+
+  const totalPages = Math.ceil(total / 12);
+  if (totalPages <= 1) return;
+
+  const container = document.createElement('div');
+  container.id = 'pagination';
+  container.style.cssText = 'display:flex;justify-content:center;align-items:center;gap:6px;margin-top:1.5rem;padding-bottom:1rem;flex-wrap:wrap';
+
+  // 이전 버튼
+  const prevBtn = document.createElement('button');
+  prevBtn.className = 'btn btn-outline';
+  prevBtn.style.cssText = 'padding:6px 14px;font-size:13px';
+  prevBtn.textContent = '← 이전';
+  prevBtn.disabled = page <= 1;
+  prevBtn.onclick = () => goToPage(page - 1);
+  container.appendChild(prevBtn);
+
+  // 페이지 번호 버튼 (현재 기준 앞뒤 2개씩)
+  const start = Math.max(1, page - 2);
+  const end = Math.min(totalPages, page + 2);
+
+  if (start > 1) {
+    container.appendChild(makePageBtn(1, page));
+    if (start > 2) {
+      const dots = document.createElement('span');
+      dots.textContent = '···';
+      dots.style.color = 'var(--muted)';
+      container.appendChild(dots);
+    }
+  }
+
+  for (let i = start; i <= end; i++) {
+    container.appendChild(makePageBtn(i, page));
+  }
+
+  if (end < totalPages) {
+    if (end < totalPages - 1) {
+      const dots = document.createElement('span');
+      dots.textContent = '···';
+      dots.style.color = 'var(--muted)';
+      container.appendChild(dots);
+    }
+    container.appendChild(makePageBtn(totalPages, page));
+  }
+
+  // 다음 버튼
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'btn btn-outline';
+  nextBtn.style.cssText = 'padding:6px 14px;font-size:13px';
+  nextBtn.textContent = '다음 →';
+  nextBtn.disabled = page >= totalPages;
+  nextBtn.onclick = () => goToPage(page + 1);
+  container.appendChild(nextBtn);
+
+  document.getElementById('auction-grid').insertAdjacentElement('afterend', container);
+}
+
+function makePageBtn(num, cur) {
+  const btn = document.createElement('button');
+  btn.className = 'btn ' + (num === cur ? 'btn-primary' : 'btn-outline');
+  btn.style.cssText = 'padding:6px 12px;font-size:13px;min-width:36px';
+  btn.textContent = num;
+  btn.onclick = () => goToPage(num);
+  return btn;
+}
+
+function goToPage(page) {
+  currentPage = page;
+  loadAuctions(page);
+  document.querySelector('.auction-main').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function tickCardTimer(id, endTime) {
+  const el = document.getElementById('ctimer-'+id);
+  if (!el) return;
+  const diff = new Date(endTime) - new Date();
+  if (diff <= 0) { el.textContent = '종료'; return; }
+  const h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
+  el.textContent = h>0 ? `${h}h ${m}m` : `${m}m ${s}s`;
+  if (diff < 60000) el.style.color = 'var(--accent2)';
+  setTimeout(() => tickCardTimer(id, endTime), 1000);
+}
+
+// ══════════════════════════════════
+//  경매 상세
+// ══════════════════════════════════
+async function loadDetail(id) {
+  currentAuctionId = id;
+  document.getElementById('detail-content').innerHTML = `<div style="color:var(--muted);text-align:center;padding:3rem">불러오는 중...</div>`;
+  const res = await apiFetch(`/api/auctions/${id}`);
+  const auction = await res.json();
+  renderDetail(auction);
+  socket.emit('join_auction', id);
+}
+
+function renderDetail(auction) {
+  const isEnded = auction.status === 'ended';
+  const isAdmin = currentUser?.role === 'admin';
+  document.getElementById('detail-content').innerHTML = `
+    <div class="detail-grid">
+      <div>
+        <img class="detail-img" src="${resolveImageUrl(auction.image_url, '600x400')}" alt="${auction.title}" onerror="this.src='https://via.placeholder.com/600x400/eef0f7/9ca3af?text=NO+IMAGE'"/>
+        <div style="margin-top:1.2rem">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:.4rem">판매자: ${auction.seller_name}</p>
+          <h1 class="detail-title">${auction.title}</h1>
+          <p class="detail-desc">${auction.description||'상세 설명이 없습니다.'}</p>
+        </div>
+      </div>
+      <div>
+        ${isEnded ? `<div class="ended-overlay">🔨 경매 종료<br/><strong>낙찰자: ${auction.winner_name||'없음'}</strong><br/>최종가: ${Number(auction.current_price).toLocaleString()}원</div>` :
+        `<div class="timer-display"><span style="font-size:12px;color:var(--muted)">남은 시간</span><span class="timer-val" id="detail-timer">-</span></div>`}
+        <div class="price-block">
+          <div class="price-label">현재 최고가</div>
+          <div class="price-val" id="detail-price">${Number(auction.current_price).toLocaleString()}원</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">시작가: ${Number(auction.start_price).toLocaleString()}원 / 최소단위: ${Number(auction.min_bid_increment).toLocaleString()}원</div>
+        </div>
+        ${!isEnded ? `
+          <div class="bid-input-row">
+            <input class="bid-input" type="number" id="bid-amount" value="${Number(auction.current_price) + Number(auction.min_bid_increment)}" step="${auction.min_bid_increment}"/>
+            <button class="bid-btn" id="bid-btn" onclick="placeBid(${auction.id})" ${!currentUser?'disabled':''}>
+              ${currentUser ? '입찰' : '로그인 필요'}
+            </button>
+          </div>
+          ${currentUser ? `<div style="font-size:12px;color:var(--muted)" id="balance-hint"></div>` : ''}
+        ` : ''}
+        ${isAdmin ? `
+          <div class="admin-controls">
+            <h4>관리자 제어</h4>
+            <div class="btn-row">
+              ${!isEnded ? `<button class="btn btn-warning" onclick="adminEndAuction(${auction.id})">조기 종료</button>` : ''}
+              <button class="btn btn-danger" onclick="adminDeleteAuction(${auction.id})">경매 삭제</button>
+            </div>
+          </div>
+        ` : ''}
+        <div class="bid-history">
+          <h3>입찰 내역 (${auction.bid_count}회)</h3>
+          <div id="bid-list">
+            ${!auction.bids?.length ? '<div style="color:var(--muted);font-size:13px">아직 입찰이 없습니다.</div>' :
+            auction.bids.map(b=>`<div class="bid-item"><span>${b.username}</span><span class="amount">${Number(b.amount).toLocaleString()}원</span><span class="time">${formatTime(b.created_at)}</span></div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  if (!isEnded) startDetailTimer(auction.end_time);
+  if (currentUser && !isEnded) updateBalanceHint(auction.start_price);
+}
+
+async function updateBalanceHint(startPrice) {
+  const res = await apiFetch('/api/auth/me', { headers: getAuthHeaders() });
+  if (!res.ok) { showNotif('정보를 불러올 수 없습니다.', 'error'); return; }
+  const data = await res.json();
+  const hint = document.getElementById('balance-hint');
+  if (!hint) return;
+  hint.textContent = `보유 잔액: ${Number(data.balance).toLocaleString()}원`;
+  if (data.balance < startPrice) {
+    hint.style.color = 'var(--accent2)';
+    hint.textContent += ' ⚠️ 잔액이 시작가보다 적어 입찰할 수 없습니다.';
+    const bidBtn = document.getElementById('bid-btn');
+    if (bidBtn) bidBtn.disabled = true;
+  }
+}
+
+function startDetailTimer(endTime) {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const el = document.getElementById('detail-timer');
+    if (!el) { clearInterval(timerInterval); return; }
+    const diff = new Date(endTime) - new Date();
+    if (diff <= 0) { el.textContent = '종료'; el.style.color='var(--accent2)'; clearInterval(timerInterval); return; }
+    const h=Math.floor(diff/3600000), m=Math.floor((diff%3600000)/60000), s=Math.floor((diff%60000)/1000);
+    el.textContent = h>0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+    if (diff<60000) el.style.color='var(--accent2)';
+  }, 1000);
+}
+
+function handleBidUpdate({ auction, lastBid }) {
+  const priceEl = document.getElementById('detail-price');
+  if (priceEl) {
+    priceEl.textContent = Number(auction.current_price).toLocaleString() + '원';
+    const inp = document.getElementById('bid-amount');
+    if (inp) inp.value = Number(auction.current_price) + Number(auction.min_bid_increment);
+  }
+  const bidList = document.getElementById('bid-list');
+  if (bidList) {
+    const item = document.createElement('div');
+    item.className = 'bid-item'; item.style.animation = 'fadeIn .3s';
+    item.innerHTML = `<span>${lastBid.username}</span><span class="amount">${Number(lastBid.amount).toLocaleString()}원</span><span class="time">방금 전</span>`;
+    bidList.insertBefore(item, bidList.firstChild);
+  }
+  showNotif(`💰 ${lastBid.username}님이 ${Number(lastBid.amount).toLocaleString()}원에 입찰했습니다.`);
+  loadAuctions();
+  loadUserBalance();
+}
+
+async function placeBid(auctionId) {
+  if (!currentUser || !authToken) return showNotif('로그인이 필요합니다.', 'error');
+  const amount = Number(document.getElementById('bid-amount').value);
+  if (!amount || amount <= 0) return showNotif('입찰 금액을 입력해주세요.', 'error');
+  socket.emit('place_bid', { auctionId, amount, token: authToken });
+}
+
+// ══════════════════════════════════
+//  관리자 경매 제어
+// ══════════════════════════════════
+async function adminEndAuction(id) {
+  if (!confirm('정말 조기 종료하시겠습니까?')) return;
+  const res = await apiFetch(`/api/auctions/${id}/end`, { method:'POST', headers: getAuthHeaders() });
+  const data = await res.json();
+  showNotif(data.message, res.ok ? 'success' : 'error');
+  if (res.ok) { loadDetail(id); loadAuctions(); }
+}
+
+async function adminDeleteAuction(id) {
+  if (!confirm('정말 삭제하시겠습니까? 입찰 내역도 모두 삭제됩니다.')) return;
+  const res = await apiFetch(`/api/auctions/${id}`, { method:'DELETE', headers: getAuthHeaders() });
+  const data = await res.json();
+  showNotif(data.message, res.ok ? 'success' : 'error');
+  if (res.ok) showPage('home');
+}
+
+// ══════════════════════════════════
+//  경매 등록
+// ══════════════════════════════════
+function showSellModal() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  const now = new Date(); now.setHours(now.getHours() + 24);
+  document.getElementById('sell-end').value = now.toISOString().slice(0,16);
+  document.getElementById('sell-modal').style.display = 'flex';
+}
+function hideSellModal() { document.getElementById('sell-modal').style.display = 'none'; }
+
+async function doSellSubmit() {
+  const title = document.getElementById('sell-title').value.trim();
+  const desc = document.getElementById('sell-desc').value.trim();
+  const imgFile = document.getElementById('sell-img').files[0];
+  const price = document.getElementById('sell-price').value;
+  const increment = document.getElementById('sell-increment').value;
+  const endTime = document.getElementById('sell-end').value;
+  const category = document.getElementById('sell-category').value;
+  if (!title || !price || !endTime) return showMsg('sell-msg','필수 항목을 입력해주세요.','error');
+  if (new Date(endTime) <= new Date()) return showMsg('sell-msg','종료 시각은 미래여야 합니다.','error');
+
+  const formData = new FormData();
+  formData.append('title', title);
+  formData.append('description', desc);
+  formData.append('start_price', Number(price));
+  formData.append('min_bid_increment', Number(increment)||1000);
+  formData.append('end_time', new Date(endTime).toISOString());
+  formData.append('category', category);
+  if (imgFile) formData.append('image', imgFile);
+
+  const headers = { 'Authorization': 'Bearer ' + authToken };  // Content-Type 제거!
+  const res = await apiFetch('/api/auctions', { method:'POST', headers, body: formData });
+  const data = await res.json();
+  if (!res.ok) return showMsg('sell-msg', data.message, 'error');
+  showMsg('sell-msg','등록 완료!','success');
+  setTimeout(() => { hideSellModal(); loadAuctions(); if(document.getElementById('page-admin').classList.contains('active')) loadAdminPage(); }, 900);
+}
+
+// ══════════════════════════════════
+//  내 정보 페이지
+// ══════════════════════════════════
+async function loadMyPage() {
+  if (!authToken || !currentUser) { showNotif('로그인이 필요합니다.', 'error'); return; }
+  const res = await apiFetch('/api/auth/me', { headers: getAuthHeaders() });
+  if (!res.ok) { showNotif('정보를 불러올 수 없습니다.', 'error'); return; }
+  const data = await res.json();
+  document.getElementById('mypage-avatar').textContent = data.username[0].toUpperCase();
+  document.getElementById('mypage-username').textContent = data.username;
+  document.getElementById('mypage-email').textContent = data.email || '이메일 없음';
+  document.getElementById('mypage-joined').textContent = '가입: ' + data.created_at?.slice(0,10);
+  document.getElementById('mypage-balance').textContent = Number(data.balance).toLocaleString() + '원';
+  document.getElementById('stat-bids').textContent = data.bidCount;
+  document.getElementById('stat-wins').textContent = data.winCount;
+  loadBalanceHistory();
+}
+
+async function loadBalanceHistory() {
+  const res = await apiFetch('/api/auth/balance-history', { headers: getAuthHeaders() });
+  const data = await res.json();
+  const el = document.getElementById('balance-history-list');
+  if (!data.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:1rem">내역 없음</div>'; return; }
+  el.innerHTML = data.map(h => {
+    const isDeduct = h.amount < 0;
+    const color = isDeduct ? 'var(--accent2)' : '#16a34a';
+    const sign = isDeduct ? '' : '+';
+    return `<div class="history-item">
+      <div>
+        <div style="font-weight:600">${h.description}</div>
+        <div style="font-size:11px;color:var(--muted)">${h.created_at?.slice(0,16)}</div>
+      </div>
+      <span style="font-weight:700;color:${color}">${sign}${Number(h.amount).toLocaleString()}원</span>
+    </div>`;
+  }).join('');
+}
+
+async function chargeBalance(amount) {
+  const res = await apiFetch('/api/auth/charge', { method:'POST', headers: getAuthHeaders(), body:JSON.stringify({amount}) });
+  const data = await res.json();
+  if (!res.ok) return showMsg('charge-msg', data.message, 'error');
+  showMsg('charge-msg', `${Number(amount).toLocaleString()}원 충전 완료!`, 'success');
+  document.getElementById('mypage-balance').textContent = Number(data.balance).toLocaleString() + '원';
+  document.getElementById('panel-balance').textContent = Number(data.balance).toLocaleString() + '원';
+  loadBalanceHistory();
+}
+
+async function chargeCustom() {
+  const amount = Number(document.getElementById('custom-charge').value);
+  if (!amount || amount < 1000) return showMsg('charge-msg','최소 1,000원부터 충전 가능합니다.','error');
+  chargeBalance(amount);
+}
+
+// ══════════════════════════════════
+//  내 경매 목록 (참여/낙찰)
+// ══════════════════════════════════
+
+// type: 'bids' = 참여한 경매, 'wins' = 낙찰된 경매
+async function showMyBids(type) {
+  if (!authToken || !currentUser) return showNotif('로그인이 필요합니다.', 'error');
+
+  // 페이지 전환
+  showPage('mybids');
+
+  // 타이틀 변경
+  const title = type === 'wins' ? '낙찰된 경매' : '참여한 경매';
+  document.getElementById('mybids-title').textContent = title;
+  document.getElementById('mybids-grid').innerHTML =
+    '<div style="color:var(--muted);font-size:14px;grid-column:1/-1;text-align:center;padding:3rem">불러오는 중...</div>';
+
+  // API 호출
+  const endpoint = type === 'wins' ? '/api/auth/my-wins' : '/api/auth/my-bids';
+  const res = await apiFetch(endpoint, { headers: { 'Authorization': 'Bearer ' + authToken } });
+  if (!res.ok) return showNotif('불러오기 실패', 'error');
+  const auctions = await res.json();
+
+  const grid = document.getElementById('mybids-grid');
+  if (!auctions.length) {
+    grid.innerHTML = `<div style="color:var(--muted);font-size:14px;grid-column:1/-1;text-align:center;padding:3rem">${title}이 없습니다.</div>`;
+    return;
+  }
+
+  // 카드 렌더링
+  grid.innerHTML = auctions.map(a => {
+    // 배지 결정
+    let badge = '';
+    if (type === 'wins') {
+      badge = '<span class="mybid-badge won">✅ 낙찰</span>';
+    } else if (a.status === 'active') {
+      badge = '<span class="mybid-badge active">⚡ 진행중</span>';
+    } else {
+      // 종료된 경매 - 내가 낙찰받았는지 확인
+      const iWon = a.current_winner_id === currentUser.userId;
+      badge = iWon
+        ? '<span class="mybid-badge won">✅ 낙찰</span>'
+        : '<span class="mybid-badge ended">❌ 유찰</span>';
+    }
+
+    return `
+      <div class="mybid-card" onclick="showPage('detail',${a.id})">
+        <img src="${resolveImageUrl(a.image_url, '300x140')}"
+             alt="${a.title}" onerror="this.src='https://via.placeholder.com/300x140/eef0f7/9ca3af?text=NO+IMAGE'"/>
+        <div class="card-body">
+          ${badge}
+          <div class="card-title">${a.title}</div>
+          <div class="card-price">${Number(a.current_price).toLocaleString()}원</div>
+          ${type === 'bids' ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">내 최고입찰가: ${Number(a.my_max_bid || 0).toLocaleString()}원</div>` : ''}
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${a.bid_count}회 입찰</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ══════════════════════════════════
+//  관리자 페이지
+// ══════════════════════════════════
+async function loadAdminPage() {
+  if (!authToken || currentUser?.role !== 'admin') return;
+  const res = await apiFetch('/api/auctions/admin/all', { headers: getAuthHeaders() });
+  const data = await res.json();
+  const tbody = document.getElementById('admin-table-body');
+  tbody.innerHTML = data.auctions.map(a => `
+    <tr>
+      <td>#${a.id}</td>
+      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.title}</td>
+      <td>${Number(a.current_price).toLocaleString()}원</td>
+      <td>${a.bid_count}회</td>
+      <td><span class="status-badge ${a.status==='active'?'status-active':'status-ended'}">${a.status==='active'?'진행중':'종료'}</span></td>
+      <td style="font-size:12px">${a.end_time?.slice(0,16)}</td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="showPage('detail',${a.id})">보기</button>
+          ${a.status==='active' ? `<button class="btn btn-warning" style="padding:4px 10px;font-size:12px" onclick="adminEndAuction(${a.id})">종료</button>` : ''}
+          <button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="adminDeleteAuction(${a.id})">삭제</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ══════════════════════════════════
+//  카테고리 필터
+// ══════════════════════════════════
+
+// 카테고리 탭 클릭 시 호출
+function filterCategory(cat) {
+  currentCategory = cat;
+  currentPage = 1;
+  document.querySelectorAll('.cat-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.cat === cat);
+  });
+  loadAuctions(1);
+}
+
+// 상단 네비 드롭다운에서 클릭 시 호출
+// → 홈 페이지로 이동 후 해당 카테고리 필터 적용
+function navFilter(cat) {
+  // 1. 현재 홈이 아니면 홈으로 이동
+  showPage('home');
+
+  // 2. 잠깐 기다렸다가 카테고리 적용
+  //    (loadAuctions가 먼저 실행된 후 필터 적용해야 탭이 보임)
+  setTimeout(() => filterCategory(cat), 100);
+}
+
+// ══════════════════════════════════
+//  채팅
+// ══════════════════════════════════
+function renderChatHistory(messages) {
+  const el = document.getElementById('chat-messages');
+  el.innerHTML = '';
+  messages.forEach(m => appendChatMsg(m));
+}
+
+function appendChatMsg({ username, message, timestamp }) {
+  const el = document.getElementById('chat-messages');
+  if (!el) return;
+  const isAdmin = username === 'admin';
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `<span class="name ${isAdmin?'admin-name':''}">${isAdmin?'👑 '+username:username}</span><span class="text">${escapeHtml(message)}</span><span class="time">${formatTime(timestamp)}</span>`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+let lastChatTime = 0; // 마지막 채팅 전송 시각
+
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  // 클라이언트 측 3초 쿨타임 체크 (서버보다 먼저 걸러줌)
+  const now = Date.now();
+  if (now - lastChatTime < 3000) {
+    showNotif('💬 3초 후 다시 보낼 수 있습니다.', 'error');
+    return;
+  }
+  lastChatTime = now;
+
+  socket.emit('chat_message', { message: msg, token: authToken || null });
+  input.value = '';
+}
+
+// ══════════════════════════════════
+//  유틸
+// ══════════════════════════════════
+function showMsg(id, msg, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg; el.className = 'form-msg ' + type;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+function showNotif(msg, type='') {
+  const c = document.getElementById('notif-container');
+  const el = document.createElement('div');
+  el.className = 'notification ' + type;
+  el.textContent = msg;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function formatTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function escapeHtml(text) {
+  return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+// ══════════════════════════════════
+//  낙찰 알림
+// ══════════════════════════════════
+async function checkNotifications() {
+  if (!authToken || !currentUser) return;
+  const res = await apiFetch('/api/auth/notifications', { headers: getAuthHeaders() });
+  if (!res.ok) return;
+  const notifications = await res.json();
+  if (!notifications.length) return;
+
+  // 알림이 있으면 하나씩 팝업 표시
+  notifications.forEach(n => showAuctionNotif(n));
+}
+
+function showAuctionNotif(notification) {
+  // 이미 표시된 알림이면 스킵
+  if (document.getElementById('notif-' + notification.id)) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'notif-' + notification.id;
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `;
+
+  overlay.innerHTML = `
+    <div style="
+      background: #fff;
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+      border: 2px solid #bbf7d0;
+    ">
+      <div style="font-size: 3rem; margin-bottom: 1rem">🎉</div>
+      <h2 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 1rem; color: #111827">낙찰 알림</h2>
+      <p style="font-size: 14px; color: #4b5563; line-height: 1.6; margin-bottom: 1.5rem">
+        ${notification.message}
+      </p>
+      <p style="font-size: 12px; color: #9ca3af; margin-bottom: 1.5rem">
+        ${notification.created_at?.slice(0, 16)}
+      </p>
+      <button onclick="confirmNotif(${notification.id})" style="
+        background: #1a56e8;
+        color: #fff;
+        border: none;
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: inherit;
+        width: 100%;
+      ">확인</button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+}
+
+async function confirmNotif(id) {
+  await apiFetch(`/api/auth/notifications/${id}/read`, {
+    method: 'POST',
+    headers: getAuthHeaders()
+  });
+  // 팝업 제거
+  const el = document.getElementById('notif-' + id);
+  if (el) el.remove();
+}
+
+// ══════════════════════════════════
+//  블록 부수기 미니게임 로직
+// ══════════════════════════════════
+let currentGameToken = null;
+let gameAnimationId;
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+let x, y, dx, dy;
+const ballRadius = 6;
+const paddleHeight = 10;
+const paddleWidth = 75;
+let paddleX;
+let rightPressed = false;
+let leftPressed = false;
+let score = 0;
+
+const brickRowCount = 4;
+const brickColumnCount = 6;
+const brickWidth = 65;
+const brickHeight = 20;
+const brickPadding = 10;
+const brickOffsetTop = 30;
+const brickOffsetLeft = 20;
+let bricks = [];
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Right" || e.key === "ArrowRight") rightPressed = true;
+  else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = true;
+});
+document.addEventListener("keyup", (e) => {
+  if (e.key === "Right" || e.key === "ArrowRight") rightPressed = false;
+  else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = false;
+});
+
+async function initGame() {
+  if (!authToken) return showNotif('로그인이 필요합니다.', 'error');
+
+  try {
+    const res = await apiFetch('/api/auth/game-start', { method: 'POST', headers: getAuthHeaders() });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.message);
+
+    currentGameToken = data.gameToken;
+    document.getElementById('game-overlay').style.display = 'none';
+
+    score = 0;
+    x = canvas.width / 2;
+    y = canvas.height - 30;
+    dx = 3;
+    dy = -3;
+    paddleX = (canvas.width - paddleWidth) / 2;
+
+    bricks = [];
+    for (let c = 0; c < brickColumnCount; c++) {
+      bricks[c] = [];
+      for (let r = 0; r < brickRowCount; r++) {
+        bricks[c][r] = { x: 0, y: 0, status: 1 };
+      }
+    }
+
+    cancelAnimationFrame(gameAnimationId);
+    draw();
+
+  } catch (err) {
+    showNotif(err.message || '게임을 시작할 수 없습니다.', 'error');
+  }
+}
+
+function drawBall() {
+  ctx.beginPath();
+  ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
+  ctx.fillStyle = "#1a56e8";
+  ctx.fill();
+  ctx.closePath();
+}
+function drawPaddle() {
+  ctx.beginPath();
+  ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
+  ctx.fillStyle = "#e84040";
+  ctx.fill();
+  ctx.closePath();
+}
+function drawBricks() {
+  for (let c = 0; c < brickColumnCount; c++) {
+    for (let r = 0; r < brickRowCount; r++) {
+      if (bricks[c][r].status === 1) {
+        let brickX = c * (brickWidth + brickPadding) + brickOffsetLeft;
+        let brickY = r * (brickHeight + brickPadding) + brickOffsetTop;
+        bricks[c][r].x = brickX;
+        bricks[c][r].y = brickY;
+        ctx.beginPath();
+        ctx.rect(brickX, brickY, brickWidth, brickHeight);
+        ctx.fillStyle = "#f0a020";
+        ctx.fill();
+        ctx.closePath();
+      }
+    }
+  }
+}
+function collisionDetection() {
+  for (let c = 0; c < brickColumnCount; c++) {
+    for (let r = 0; r < brickRowCount; r++) {
+      let b = bricks[c][r];
+      if (b.status === 1) {
+        if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
+          dy = -dy;
+          b.status = 0;
+          score += 10;
+          if (score === brickRowCount * brickColumnCount * 10) endGame(true);
+        }
+      }
+    }
+  }
+}
+function drawScore() {
+  ctx.font = "14px Noto Sans KR";
+  ctx.fillStyle = "#fff";
+  ctx.fillText("SCORE: " + score, 8, 20);
+}
+
+async function endGame(isWin) {
+  cancelAnimationFrame(gameAnimationId);
+  const overlay = document.getElementById('game-overlay');
+  const msg = document.getElementById('game-result-msg');
+
+  overlay.style.display = 'flex';
+  msg.textContent = isWin ? 'STAGE CLEAR!' : `GAME OVER (SCORE: ${score})`;
+
+  if (score > 0 && currentGameToken) {
+    const res = await apiFetch('/api/auth/game-reward', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ score, gameToken: currentGameToken })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      showNotif(`🎉 ${data.message}`, 'success');
+      document.getElementById('panel-balance').textContent = Number(data.balance).toLocaleString() + '원';
+      if(document.getElementById('mypage-balance')) document.getElementById('mypage-balance').textContent = Number(data.balance).toLocaleString() + '원';
+    } else {
+      showNotif(`⚠️ ${data.message}`, 'error');
+    }
+  }
+  currentGameToken = null;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBricks();
+  drawBall();
+  drawPaddle();
+  drawScore();
+  collisionDetection();
+
+  if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) dx = -dx;
+  if (y + dy < ballRadius) {
+    dy = -dy;
+  } else if (y + dy > canvas.height - ballRadius) {
+    if (x > paddleX && x < paddleX + paddleWidth) {
+      dy = -dy;
+      dx = dx + (x - (paddleX + paddleWidth/2)) * 0.05;
+    } else {
+      endGame(false);
+      return;
+    }
+  }
+
+  if (rightPressed && paddleX < canvas.width - paddleWidth) paddleX += 5;
+  else if (leftPressed && paddleX > 0) paddleX -= 5;
+
+  x += dx;
+  y += dy;
+  gameAnimationId = requestAnimationFrame(draw);
+}
+
+async function checkRegion() {
+  try {
+    // method: 'HEAD'를 지워서 진짜 데이터(Body)를 받아오게 합니다.
+    const res = await fetch(`${API_BASE_URL}/health?t=` + Date.now());
+    const data = await res.json(); // 백엔드가 주는 JSON 읽기!
+    
+    const isAzure = (data.region === 'singapore'); // JSON 값으로 지역 판단
+    const regionName = isAzure ? '🇸🇬싱가포르 (DR)' : '🇰🇷서울 (Main)';
+    const badgeColor = isAzure ? '#e84040' : '#1a56e8';
+    
+    const logo = document.querySelector('.logo');
+    const badge = document.createElement('span');
+    badge.style.cssText = `font-size: 11px; margin-left: 8px; font-weight: bold; color: ${badgeColor}; vertical-align: middle; padding: 3px 8px; background: #f5f6fa; border-radius: 6px; border: 1.5px solid ${badgeColor};`;
+    badge.textContent = regionName;
+    logo.appendChild(badge);
+  } catch(e) {
+    console.error("서버 위치 확인 실패", e);
+  }
+}
+
+// 초기화 부분에 추가
+renderNav();
+checkRegion(); // 서버 위치 표시기 실행
+setInterval(loadAuctions, 30000);
+
+
+// 로그인 안된 상태면 로그인 페이지 먼저 표시
+if (!currentUser || !authToken) {
+  showPage('login');
+} else {
+  loadAuctions();
+}
+</script>
+</body>
+</html>
